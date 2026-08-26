@@ -38,3 +38,4 @@ let elapsed = start.duration(to: clock.now)
 print("\(TRIAL) games")
 print("Elapsed:", elapsed)
 print("Average:", elapsed / TRIAL)
+
