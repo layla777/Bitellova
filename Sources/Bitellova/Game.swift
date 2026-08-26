@@ -5,3 +5,14 @@
 //  Created by ideguti masaya on 2026/08/25.
 //
 
+struct Game {
+    private(set) var board: Board
+
+    init() {
+        board = .initialPosition
+    }
+
+    mutating func play(_ position: String) throws {
+        board = try board.played(position)
+    }
+}
