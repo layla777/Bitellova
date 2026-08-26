@@ -8,3 +8,7 @@
 enum MoveError: Error {
     case invalidMove
 }
+
+enum ValueError: Error {
+    case invalidValue
+}

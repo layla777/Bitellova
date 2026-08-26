@@ -75,7 +75,7 @@ struct Board: Hashable, CustomStringConvertible {
     /// Returns the position after playing the specified square.
     ///
     /// The current board is not modified. A new board is returned instead.
-    func played(_ position: String) throws -> Board {
+    func playedBoard(_ position: String) throws -> Board {
         let move = try Board.bit(position)
         let flipped = flips(for: move)
 
@@ -223,7 +223,37 @@ struct Board: Hashable, CustomStringConvertible {
 
         return allFlips
     }
+    
+    var isPass: Bool {
+        mutating get {
+            legalMoves == 0
+        }
+    }
+    
+    func passedBoard() -> Board {
+        let nextTurn: Player = turn == .black ? .white : .black
+        return Board(
+            black: black,
+            white: white,
+            turn: nextTurn
+        )
+    }
 
+    var isGameOver: Bool {
+        mutating get {
+            if emptySquares == 0 {
+                return true
+            }
+            
+            guard isPass else {
+                return false
+            }
+            
+            var nextBoard: Board = passedBoard()
+            return nextBoard.isPass
+        }
+    }
+    
     // MARK: - Internal utilities
 
     /// Converts a square such as "f5" into its corresponding bit.
@@ -247,7 +277,23 @@ struct Board: Hashable, CustomStringConvertible {
 
         return UInt64(1) << bitPosition
     }
+    
+    /// converts a bit into its corresspoindig square such as "f5"
+    static func square(_ bit: UInt64) throws -> String {
+        guard bit.nonzeroBitCount == 1 else {
+            throw ValueError.invalidValue
+        }
 
+        let index = bit.leadingZeroBitCount
+        let rank = index / 8
+        let file = index % 8
+
+        let fileCharacter = Character(UnicodeScalar(97 + file)!)
+        let rankCharacter = Character(UnicodeScalar(49 + rank)!)
+
+        return "\(fileCharacter)\(rankCharacter)"
+    }
+    
     // MARK: - Hashable
 
     static func == (lhs: Board, rhs: Board) -> Bool {

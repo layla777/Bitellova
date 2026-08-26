@@ -7,13 +7,26 @@
 
 import Foundation
 
-var board = Board.initialPosition
+var game = Game()
 
-print(board)
+print(game.board)
 
-do {
-    board = try board.played("c4")
-    print(board)
-} catch {
-    print("Error:", error)
+while !game.isGameOver {
+    if game.isPass {
+        game.pass()
+        continue
+    }
+
+    let moves = game.legalMoves
+    let move = moves & ~(moves &- 1)
+
+    do {
+        let position = try Board.square(move)
+        try game.play(position)
+        print(game.board)
+    } catch {
+        print("Error:", error)
+        break
+    }
 }
+
