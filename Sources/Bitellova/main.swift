@@ -16,10 +16,10 @@ while !game.isGameOver {
         game.pass()
         continue
     }
-
+    
     let moves = game.legalMoves
     let move = moves & ~(moves &- 1)
-
+    
     do {
         let position = try Board.square(move)
         try game.play(position)
@@ -29,4 +29,3 @@ while !game.isGameOver {
         break
     }
 }
-

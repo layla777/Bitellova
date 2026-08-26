@@ -7,11 +7,11 @@
 
 struct Game {
     private(set) var board: Board
-
+    
     init() {
         board = .initialPosition
     }
-
+    
     mutating func play(_ position: String) throws {
         board = try board.playedBoard(position)
     }
