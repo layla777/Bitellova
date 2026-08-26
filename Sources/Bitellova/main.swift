@@ -1,31 +1,40 @@
 //
 //  main.swift
-//  
+//
 //
 //  Created by ideguti masaya on 2026/08/24.
 //
 
 import Foundation
 
-var game = Game()
+let clock = ContinuousClock()
+let start = clock.now
+let TRIAL = 5000
 
-print(game.board)
-
-while !game.isGameOver {
-    if game.isPass {
-        game.pass()
-        continue
-    }
+for _ in 0 ..< TRIAL {
+    var game = Game()
     
-    let moves = game.legalMoves
-    let move = moves & ~(moves &- 1)
-    
-    do {
-        let position = try Board.square(move)
-        try game.play(position)
-        print(game.board)
-    } catch {
-        print("Error:", error)
-        break
+    while !game.isGameOver {
+        if game.isPass {
+            game.pass()
+            continue
+        }
+        
+        let moves = game.legalMoves
+        let move = moves & ~(moves &- 1)
+        
+        do {
+            let position = try Board.square(move)
+            try game.play(position)
+        } catch {
+            print("Error:", error)
+            break
+        }
     }
 }
+
+let elapsed = start.duration(to: clock.now)
+
+print("\(TRIAL) games")
+print("Elapsed:", elapsed)
+print("Average:", elapsed / TRIAL)

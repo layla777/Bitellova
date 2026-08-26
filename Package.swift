@@ -4,6 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "Bitellova",
+    platforms: [
+        .macOS(.v13)
+    ],
     targets: [
         .executableTarget(
             name: "Bitellova"
