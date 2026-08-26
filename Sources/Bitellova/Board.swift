@@ -131,11 +131,11 @@ struct Board: Hashable, CustomStringConvertible {
                 let mask = UInt64(1) << bitPosition
 
                 if black & mask != 0 {
-                    board += "X "
+                    board += "● "
                 } else if white & mask != 0 {
-                    board += "O "
+                    board += "○ "
                 } else if legalMoves & mask != 0 {
-                    board += ". "
+                    board += "• "
                 } else {
                     board += "- "
                 }
