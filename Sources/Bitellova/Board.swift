@@ -20,6 +20,17 @@ struct Board: Hashable, CustomStringConvertible {
     
     private static let columnHeader: String = "  A B C D E F G H\n"
     
+    private static let shiftAndMask: [(Int, UInt64)] = [
+        (-9, 0b1111111011111110111111101111111011111110111111101111111011111111),
+        (-8, UInt64.max),
+        (-7, 0b0111111101111111011111110111111101111111011111110111111101111111),
+        (-1, 0b1111111011111110111111101111111011111110111111101111111011111110),
+        ( 1, 0b0111111101111111011111110111111101111111011111110111111101111111),
+        ( 7, 0b1111111011111110111111101111111011111110111111101111111011111110),
+        ( 8, UInt64.max),
+        ( 9, 0b1111111101111111011111110111111101111111011111110111111101111111)
+    ]
+    
     // MARK: - Initial position
     
     static var initialPosition: Board {
@@ -111,18 +122,25 @@ struct Board: Hashable, CustomStringConvertible {
         board += String(format: "  Black: %2d %+d\n", blackDiscs, discDifferences)
         board += String(format: "  White: %2d %+d\n", whiteDiscs, -discDifferences)
         board += "  "
-        if turn == .black {
-            board += "Black"
-        } else {
-            board += "White"
-        }
-        board += "'s turn\n\n"
-        board += Board.columnHeader
-        
+
         // This deliberately calculates the moves without updating the cache.
         // String conversion should not change the logical state of the board.
         let legalMoves = calculateLegalMoves()
-        
+        let gameIsOver = legalMoves == 0
+
+        if gameIsOver {
+            board += "Game over"
+        } else {
+            if turn == .black {
+                board += "Black"
+            } else {
+                board += "White"
+            }
+            board += "'s turn"
+        }
+        board += "\n\n"
+        board += Board.columnHeader
+                
         for rank in 0..<8 {
             board += "\(rank + 1) "
             
@@ -174,53 +192,54 @@ struct Board: Hashable, CustomStringConvertible {
     }
     
     func flips(for move: UInt64) -> UInt64 {
+        // DEBUG:
+        let square: String = try! Self.square(move)
+        if square == "a1" {
+            //
+        }
+
         // A legal move must contain exactly one bit and target an empty square.
         guard move.nonzeroBitCount == 1,
               (black | white) & move == 0
         else {
             return 0
         }
-        
-        let index = move.leadingZeroBitCount
-        let rank = index / 8
-        let file = index % 8
-        
+                
         let own = turn == .black ? black : white
         let opponent = turn == .black ? white : black
         
-        let directions = [
-            (-1, -1), (-1, 0), (-1, 1),
-            ( 0, -1),          ( 0, 1),
-            ( 1, -1), ( 1, 0), ( 1, 1)
-        ]
-        
         var allFlips: UInt64 = 0
         
-        for (rankDelta, fileDelta) in directions {
-            var nextRank = rank + rankDelta
-            var nextFile = file + fileDelta
-            var candidates: UInt64 = 0
-            
-            while (0..<8).contains(nextRank),
-                  (0..<8).contains(nextFile) {
+        for (shift, mask) in Self.shiftAndMask {
+            var current = move
+            var candidate: UInt64 = 0
+            for _ in 0..<7 {
+                let shifted = shift > 0 ? current >> shift : current << -shift
+                let masked = shifted & mask
+                current = masked
                 
-                let nextIndex = nextRank * 8 + nextFile
-                let nextBit = UInt64(1) << (63 - nextIndex)
-                
-                if opponent & nextBit != 0 {
-                    candidates |= nextBit
-                } else if own & nextBit != 0 {
-                    allFlips |= candidates
-                    break
-                } else {
+                if masked == 0 {
                     break
                 }
                 
-                nextRank += rankDelta
-                nextFile += fileDelta
+                if masked & emptySquares != 0 {
+                    break
+                }
+                
+                if masked & opponent != 0 {
+                    candidate |= masked
+                    continue
+                }
+                if masked & own != 0 {
+                    allFlips |= candidate
+                    break
+                }
             }
         }
-        
+//        if allFlips != 0 {
+//            let ret = try! Self.square(allFlips)
+//        }
+
         return allFlips
     }
     
@@ -278,7 +297,7 @@ struct Board: Hashable, CustomStringConvertible {
         return UInt64(1) << bitPosition
     }
     
-    /// converts a bit into its corresspoindig square such as "f5"
+    /// converts a bit into its correspondig square such as "f5"
     static func square(_ bit: UInt64) throws -> String {
         guard bit.nonzeroBitCount == 1 else {
             throw ValueError.invalidValue
