@@ -126,8 +126,10 @@ struct Board: Hashable, CustomStringConvertible {
         // This deliberately calculates the moves without updating the cache.
         // String conversion should not change the logical state of the board.
         let legalMoves = calculateLegalMoves()
-        let gameIsOver = legalMoves == 0
-
+        let mustPass = legalMoves == 0
+        let gameIsOver =
+            emptySquares == 0 ||
+            (mustPass && passedBoard().calculateLegalMoves() == 0)
         if gameIsOver {
             board += "Game over"
         } else {
@@ -136,7 +138,11 @@ struct Board: Hashable, CustomStringConvertible {
             } else {
                 board += "White"
             }
-            board += "'s turn"
+            if mustPass {
+                board += " passes"
+            } else {
+                board += "'s turn"
+            }
         }
         board += "\n\n"
         board += Board.columnHeader
@@ -171,20 +177,19 @@ struct Board: Hashable, CustomStringConvertible {
     // MARK: - Move generation
     
     private func calculateLegalMoves() -> UInt64 {
-        var currentBit: UInt64 = 1 << 63
-        var legalMoves: UInt64 = 0
-        
-        while currentBit != 0 {
-            let occupied = (black | white) & currentBit != 0
-            
-            if !occupied && isLegal(currentBit) {
-                legalMoves |= currentBit
+        var candidates = emptySquares
+        var moves: UInt64 = 0
+
+        while candidates != 0 {
+            let move = UInt64(1) << candidates.trailingZeroBitCount
+            candidates &= candidates &- 1
+
+            if isLegal(move) {
+                moves |= move
             }
-            
-            currentBit >>= 1
         }
-        
-        return legalMoves
+
+        return moves
     }
     
     func isLegal(_ move: UInt64) -> Bool {
@@ -193,10 +198,10 @@ struct Board: Hashable, CustomStringConvertible {
     
     func flips(for move: UInt64) -> UInt64 {
         // DEBUG:
-        let square: String = try! Self.square(move)
-        if square == "a1" {
-            //
-        }
+//        let square: String = try! Self.square(move)
+//        if square == "a1" {
+//            //
+//        }
 
         // A legal move must contain exactly one bit and target an empty square.
         guard move.nonzeroBitCount == 1,
@@ -211,29 +216,22 @@ struct Board: Hashable, CustomStringConvertible {
         var allFlips: UInt64 = 0
         
         for (shift, mask) in Self.shiftAndMask {
-            var current = move
-            var candidate: UInt64 = 0
+            var ray = move
+            var captured: UInt64 = 0
+            
             for _ in 0..<7 {
-                let shifted = shift > 0 ? current >> shift : current << -shift
-                let masked = shifted & mask
-                current = masked
-                
-                if masked == 0 {
-                    break
-                }
-                
-                if masked & emptySquares != 0 {
-                    break
-                }
-                
-                if masked & opponent != 0 {
-                    candidate |= masked
+                ray = (shift > 0 ? ray >> shift : ray << -shift) & mask
+                                
+                if ray & opponent != 0 {
+                    captured |= ray
                     continue
                 }
-                if masked & own != 0 {
-                    allFlips |= candidate
-                    break
+                
+                if ray & own != 0 {
+                    allFlips |= captured
                 }
+                
+                break
             }
         }
 //        if allFlips != 0 {
