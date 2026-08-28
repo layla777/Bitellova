@@ -193,9 +193,30 @@ struct Board: Hashable, CustomStringConvertible {
     }
     
     func isLegal(_ move: UInt64) -> Bool {
-        flips(for: move) != 0
+        guard move.nonzeroBitCount == 1,
+              (black | white) & move == 0
+        else {
+            return false
+        }
+
+        let own = turn == .black ? black : white
+        let opponent = turn == .black ? white : black
+
+        for (shift, mask) in Self.shiftAndMask {
+            if flipsInDirection(
+                for: move,
+                own: own,
+                opponent: opponent,
+                shift: shift,
+                mask: mask
+            ) != 0 {
+                return true
+            }
+        }
+
+        return false
     }
-    
+
     func flips(for move: UInt64) -> UInt64 {
         // DEBUG:
 //        let square: String = try! Self.square(move)
@@ -216,23 +237,13 @@ struct Board: Hashable, CustomStringConvertible {
         var allFlips: UInt64 = 0
         
         for (shift, mask) in Self.shiftAndMask {
-            var ray = move
-            var captured: UInt64 = 0
-            
-            for _ in 0..<7 {
-                ray = (shift > 0 ? ray >> shift : ray << -shift) & mask
-                                
-                if ray & opponent != 0 {
-                    captured |= ray
-                    continue
-                }
-                
-                if ray & own != 0 {
-                    allFlips |= captured
-                }
-                
-                break
-            }
+            allFlips |= flipsInDirection(
+                for: move,
+                own: own,
+                opponent: opponent,
+                shift: shift,
+                mask: mask
+            )
         }
 //        if allFlips != 0 {
 //            let ret = try! Self.square(allFlips)
@@ -241,6 +252,30 @@ struct Board: Hashable, CustomStringConvertible {
         return allFlips
     }
     
+    private func flipsInDirection(
+        for move: UInt64,
+        own: UInt64,
+        opponent: UInt64,
+        shift: Int,
+        mask: UInt64
+    ) -> UInt64 {
+        var ray = move
+        var captured: UInt64 = 0
+
+        for _ in 0..<7 {
+            ray = (shift > 0 ? ray >> shift : ray << -shift) & mask
+
+            if ray & opponent != 0 {
+                captured |= ray
+                continue
+            }
+
+            return ray & own != 0 ? captured : 0
+        }
+
+        return 0
+    }
+
     var isPass: Bool {
         mutating get {
             legalMoves == 0
