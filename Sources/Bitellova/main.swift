@@ -122,3 +122,32 @@ print("Average:", elapsed / TRIAL)
 //
 //print("\n\(trialCount) random games verified")
 //print("Elapsed (not a benchmark):", elapsed)
+
+//var game = Game()
+//print(game.board)
+//
+//while !game.isGameOver {
+//    if game.isPass {
+//        game.pass()
+//        print(game.board)
+//        continue
+//    }
+//
+//    let moves = game.legalMoves
+//    let move: UInt64
+//    
+//    if game.board.turn == .black {
+//        move = UInt64(1) << (63 - moves.leadingZeroBitCount)
+//    } else {
+//        move = moves & ~(moves &- 1)
+//    }
+//
+//    do {
+//        let position = try Board.square(move)
+//        try game.play(position)
+//        print(game.board)
+//    } catch {
+//        print("Error:", error)
+//        break
+//    }
+//}

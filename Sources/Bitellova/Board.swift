@@ -334,26 +334,32 @@ struct Board: Hashable, CustomStringConvertible {
 
     // MARK: - Internal utilities
 
+    private static let squareNames: [String] = (0..<64).map { index in
+        let file = Character(UnicodeScalar(97 + index % 8)!)
+        let rank = Character(UnicodeScalar(49 + index / 8)!)
+        return "\(file)\(rank)"
+    }
+
+    private static let bitsBySquare: [String: UInt64] = {
+        var result: [String: UInt64] = [:]
+        result.reserveCapacity(128)
+
+        for (index, square) in squareNames.enumerated() {
+            let bit = UInt64(1) << (63 - index)
+            result[square] = bit
+            result[square.uppercased()] = bit
+        }
+
+        return result
+    }()
+    
     /// Converts a square such as "f5" into its corresponding bit.
     private static func bit(_ square: String) throws -> UInt64 {
-        let bytes = Array(square.lowercased().utf8)
-
-        guard bytes.count == 2 else {
+        guard let bit = bitsBySquare[square] else {
             throw MoveError.invalidMove
         }
 
-        let file = Int(bytes[0]) - 97
-        let rank = Int(bytes[1]) - 49
-
-        guard (0..<8).contains(file),
-            (0..<8).contains(rank)
-        else {
-            throw MoveError.invalidMove
-        }
-
-        let bitPosition = 63 - (rank * 8 + file)
-
-        return UInt64(1) << bitPosition
+        return bit
     }
 
     /// Converts a bit into its corresponding square such as "f5"
@@ -362,14 +368,7 @@ struct Board: Hashable, CustomStringConvertible {
             throw ValueError.invalidValue
         }
 
-        let index = bit.leadingZeroBitCount
-        let rank = index / 8
-        let file = index % 8
-
-        let fileCharacter = Character(UnicodeScalar(97 + file)!)
-        let rankCharacter = Character(UnicodeScalar(49 + rank)!)
-
-        return "\(fileCharacter)\(rankCharacter)"
+        return squareNames[bit.leadingZeroBitCount]
     }
 
     private static func shifted(
