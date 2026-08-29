@@ -83,21 +83,18 @@ struct Board: Hashable, CustomStringConvertible {
         )
     )
 
+    private static let blackInitialPositions: UInt64 =
+        0b00000000_00000000_00000000_00001000_00010000_00000000_00000000_00000000
+    private static let whiteInitialPositions: UInt64 =
+        0b00000000_00000000_00000000_00010000_00001000_00000000_00000000_00000000
+
     // MARK: - Initial position
 
-    static var initialPosition: Board {
-        let blackDiscs =
-            try! bit("e4") | bit("d5")
-
-        let whiteDiscs =
-            try! bit("d4") | bit("e5")
-
-        return Board(
-            black: blackDiscs,
-            white: whiteDiscs,
-            turn: .black
-        )
-    }
+    static let initialPosition = Board(
+        black: blackInitialPositions,
+        white: whiteInitialPositions,
+        turn: .black
+    )
 
     // MARK: - Position information
 
@@ -136,8 +133,7 @@ struct Board: Hashable, CustomStringConvertible {
     /// Returns the position after playing the specified square.
     ///
     /// The current board is not modified. A new board is returned instead.
-    func playedBoard(_ position: String) throws -> Board {
-        let move = try Board.bit(position)
+    func playedBoard(_ move: UInt64) throws -> Board {
         let flipped = flips(for: move)
 
         guard flipped != 0 else {
@@ -159,6 +155,10 @@ struct Board: Hashable, CustomStringConvertible {
                 turn: .black
             )
         }
+    }
+
+    func playedBoard(_ position: String) throws -> Board {
+        try playedBoard(Board.bit(position))
     }
 
     // MARK: - Display
@@ -235,7 +235,7 @@ struct Board: Hashable, CustomStringConvertible {
     }
 
     // MARK: - Move generation
-    
+
     private func calculateLegalMovesReference() -> UInt64 {
         let own = turn == .black ? black : white
         let opponent = turn == .black ? white : black
@@ -301,7 +301,7 @@ struct Board: Hashable, CustomStringConvertible {
             shifts: Self.rightShiftPairs.1.shifts,
             masks: Self.rightShiftPairs.1.masks
         )
-        
+
         let result = moves[0] | moves[1]
         return result
     }

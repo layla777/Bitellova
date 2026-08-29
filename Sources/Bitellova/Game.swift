@@ -12,6 +12,10 @@ struct Game {
         board = .initialPosition
     }
     
+    mutating func play(_ move: UInt64) throws {
+        board = try board.playedBoard(move)
+    }
+    
     mutating func play(_ position: String) throws {
         board = try board.playedBoard(position)
     }

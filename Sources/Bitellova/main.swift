@@ -9,7 +9,7 @@ import Foundation
 
 let clock = ContinuousClock()
 let start = clock.now
-let TRIAL = 500_000
+let TRIAL = 1_000_000
 
 for _ in 0..<TRIAL {
     var game = Game()
@@ -21,11 +21,11 @@ for _ in 0..<TRIAL {
         }
 
         let moves = game.legalMoves
-        let move = moves & ~(moves &- 1)
+//        let move = moves & ~(moves &- 1)
+        let move = UInt64(1) << (63 - moves.leadingZeroBitCount)
 
         do {
-            let position = try Board.square(move)
-            try game.play(position)
+            try game.play(move)
         } catch {
             print("Error:", error)
             break
@@ -60,8 +60,7 @@ print("Average:", elapsed / TRIAL)
 //    let move = moves & ~(moves &- 1)
 //
 //    do {
-//        let position = try Board.square(move)
-//        try game.play(position)
+//        try game.play(move)
 //        print(game.board)
 //    } catch {
 //        print("Error:", error)
@@ -101,8 +100,7 @@ print("Average:", elapsed / TRIAL)
 //        let move = randomMove(from: game.legalMoves)
 //
 //        do {
-//            let position = try Board.square(move)
-//            try game.play(position)
+//            try game.play(move)
 //        } catch {
 //            fatalError(
 //                "Game \(gameNumber) failed at \(String(move, radix: 16)): \(error)"
@@ -140,8 +138,7 @@ print("Average:", elapsed / TRIAL)
 //    }
 //
 //    do {
-//        let position = try Board.square(move)
-//        try game.play(position)
+//        try game.play(move)
 //        print(game.board)
 //    } catch {
 //        print("Error:", error)
