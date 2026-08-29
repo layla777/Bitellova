@@ -131,9 +131,18 @@ struct Board: Hashable, CustomStringConvertible {
 
     var description: String {
         var board = "\n"
-        let blackDiscs = black.nonzeroBitCount
-        let whiteDiscs = white.nonzeroBitCount
-        let discDifferences: Int = blackDiscs - whiteDiscs
+
+        // This deliberately calculates the moves without updating the cache.
+        // String conversion should not change the logical state of the board.
+        let legalMoves = calculateLegalMoves()
+        let mustPass = legalMoves == 0
+        let score = calculateFinalScore(legalMoves: legalMoves)
+        let gameIsOver = score != nil
+        let counts = score ?? discCounts
+
+        let blackDiscs = counts.black
+        let whiteDiscs = counts.white
+        let discDifferences = blackDiscs - whiteDiscs
 
         board += String(
             format: "  Black: %2d %+d\n",
@@ -147,13 +156,6 @@ struct Board: Hashable, CustomStringConvertible {
         )
         board += "  "
 
-        // This deliberately calculates the moves without updating the cache.
-        // String conversion should not change the logical state of the board.
-        let legalMoves = calculateLegalMoves()
-        let mustPass = legalMoves == 0
-        let gameIsOver =
-            emptySquares == 0
-            || (mustPass && passedBoard().calculateLegalMoves() == 0)
         if gameIsOver {
             board += "Game over"
         } else {
@@ -317,19 +319,48 @@ struct Board: Hashable, CustomStringConvertible {
         )
     }
 
+    private func calculateGameIsOver(
+        legalMoves: UInt64
+    ) -> Bool {
+        emptySquares == 0
+            || (legalMoves == 0
+                && passedBoard().calculateLegalMoves() == 0)
+    }
+
     var isGameOver: Bool {
         mutating get {
             if emptySquares == 0 {
                 return true
             }
 
-            guard isPass else {
-                return false
-            }
-
-            var nextBoard: Board = passedBoard()
-            return nextBoard.isPass
+            return calculateGameIsOver(legalMoves: legalMoves)
         }
+    }
+
+    private func calculateFinalScore(
+        legalMoves: UInt64
+    ) -> (black: Int, white: Int)? {
+        guard calculateGameIsOver(legalMoves: legalMoves) else {
+            return nil
+        }
+
+        let blackDiscs = black.nonzeroBitCount
+        let whiteDiscs = white.nonzeroBitCount
+        let emptyDiscs = 64 - blackDiscs - whiteDiscs
+
+        if blackDiscs > whiteDiscs {
+            return (blackDiscs + emptyDiscs, whiteDiscs)
+        }
+
+        if whiteDiscs > blackDiscs {
+            return (blackDiscs, whiteDiscs + emptyDiscs)
+        }
+
+        return (32, 32)
+    }
+
+    var finalScore: (black: Int, white: Int)? {
+        calculateFinalScore(legalMoves: calculateLegalMoves())
     }
 
     // MARK: - Internal utilities
@@ -352,7 +383,7 @@ struct Board: Hashable, CustomStringConvertible {
 
         return result
     }()
-    
+
     /// Converts a square such as "f5" into its corresponding bit.
     private static func bit(_ square: String) throws -> UInt64 {
         guard let bit = bitsBySquare[square] else {
