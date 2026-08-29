@@ -49,6 +49,40 @@ struct Board: Hashable, CustomStringConvertible {
         ),
     ]
 
+    private static let leftShiftPairs = (
+        (
+            shifts: SIMD2<UInt64>(9, 8),
+            masks: SIMD2<UInt64>(
+                shiftAndMask[0].1,
+                shiftAndMask[1].1
+            )
+        ),
+        (
+            shifts: SIMD2<UInt64>(7, 1),
+            masks: SIMD2<UInt64>(
+                shiftAndMask[2].1,
+                shiftAndMask[3].1
+            )
+        )
+    )
+
+    private static let rightShiftPairs = (
+        (
+            shifts: SIMD2<UInt64>(1, 7),
+            masks: SIMD2<UInt64>(
+                shiftAndMask[4].1,
+                shiftAndMask[5].1
+            )
+        ),
+        (
+            shifts: SIMD2<UInt64>(8, 9),
+            masks: SIMD2<UInt64>(
+                shiftAndMask[6].1,
+                shiftAndMask[7].1
+            )
+        )
+    )
+
     // MARK: - Initial position
 
     static var initialPosition: Board {
@@ -201,8 +235,8 @@ struct Board: Hashable, CustomStringConvertible {
     }
 
     // MARK: - Move generation
-
-    private func calculateLegalMoves() -> UInt64 {
+    
+    private func calculateLegalMovesReference() -> UInt64 {
         let own = turn == .black ? black : white
         let opponent = turn == .black ? white : black
         let empty = emptySquares
@@ -210,18 +244,14 @@ struct Board: Hashable, CustomStringConvertible {
         var moves: UInt64 = 0
 
         for (shift, mask) in Self.shiftAndMask {
-            // All adjacent opponent discs in this direction.
             var captured =
                 Self.shifted(own, by: shift, mask: mask) & opponent
 
-            // At most six opponent discs can lie between an own disc
-            // and a legal move on an 8x8 board.
             for _ in 0..<5 {
                 captured |=
                     Self.shifted(captured, by: shift, mask: mask) & opponent
             }
 
-            // Empty squares immediately beyond the captured sequences.
             moves |=
                 Self.shifted(captured, by: shift, mask: mask) & empty
         }
@@ -229,29 +259,87 @@ struct Board: Hashable, CustomStringConvertible {
         return moves
     }
 
-    func isLegal(_ move: UInt64) -> Bool {
-        guard move.nonzeroBitCount == 1,
-            (black | white) & move == 0
-        else {
-            return false
+    private func calculateLegalMoves() -> UInt64 {
+        let own = SIMD2<UInt64>(
+            repeating: turn == .black ? black : white
+        )
+        let opponent = SIMD2<UInt64>(
+            repeating: turn == .black ? white : black
+        )
+        let empty = SIMD2<UInt64>(repeating: emptySquares)
+
+        var moves = SIMD2<UInt64>.zero
+
+        moves |= Self.legalMovesShiftedLeft(
+            own: own,
+            opponent: opponent,
+            empty: empty,
+            shifts: Self.leftShiftPairs.0.shifts,
+            masks: Self.leftShiftPairs.0.masks
+        )
+
+        moves |= Self.legalMovesShiftedLeft(
+            own: own,
+            opponent: opponent,
+            empty: empty,
+            shifts: Self.leftShiftPairs.1.shifts,
+            masks: Self.leftShiftPairs.1.masks
+        )
+
+        moves |= Self.legalMovesShiftedRight(
+            own: own,
+            opponent: opponent,
+            empty: empty,
+            shifts: Self.rightShiftPairs.0.shifts,
+            masks: Self.rightShiftPairs.0.masks
+        )
+
+        moves |= Self.legalMovesShiftedRight(
+            own: own,
+            opponent: opponent,
+            empty: empty,
+            shifts: Self.rightShiftPairs.1.shifts,
+            masks: Self.rightShiftPairs.1.masks
+        )
+        
+        let result = moves[0] | moves[1]
+        return result
+    }
+
+    private static func legalMovesShiftedLeft(
+        own: SIMD2<UInt64>,
+        opponent: SIMD2<UInt64>,
+        empty: SIMD2<UInt64>,
+        shifts: SIMD2<UInt64>,
+        masks: SIMD2<UInt64>
+    ) -> SIMD2<UInt64> {
+        var captured =
+            ((own &<< shifts) & masks) & opponent
+
+        for _ in 0..<5 {
+            captured |=
+                ((captured &<< shifts) & masks) & opponent
         }
 
-        let own = turn == .black ? black : white
-        let opponent = turn == .black ? white : black
+        return ((captured &<< shifts) & masks) & empty
+    }
 
-        for (shift, mask) in Self.shiftAndMask {
-            if flipsInDirection(
-                for: move,
-                own: own,
-                opponent: opponent,
-                shift: shift,
-                mask: mask
-            ) != 0 {
-                return true
-            }
+    private static func legalMovesShiftedRight(
+        own: SIMD2<UInt64>,
+        opponent: SIMD2<UInt64>,
+        empty: SIMD2<UInt64>,
+        shifts: SIMD2<UInt64>,
+        masks: SIMD2<UInt64>
+    ) -> SIMD2<UInt64> {
+        var captured =
+            ((own &>> shifts) & masks) & opponent
+
+        for _ in 0..<5 {
+            captured |=
+                ((captured &>> shifts) & masks) & opponent
         }
 
-        return false
+        return ((captured &>> shifts) & masks) & empty
     }
 
     func flips(for move: UInt64) -> UInt64 {

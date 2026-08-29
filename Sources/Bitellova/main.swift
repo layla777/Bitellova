@@ -7,37 +7,37 @@
 
 import Foundation
 
-//let clock = ContinuousClock()
-//let start = clock.now
-//let TRIAL = 500_000
-//
-//for _ in 0..<TRIAL {
-//    var game = Game()
-//
-//    while !game.isGameOver {
-//        if game.isPass {
-//            game.pass()
-//            continue
-//        }
-//
-//        let moves = game.legalMoves
-//        let move = moves & ~(moves &- 1)
-//
-//        do {
-//            let position = try Board.square(move)
-//            try game.play(position)
-//        } catch {
-//            print("Error:", error)
-//            break
-//        }
-//    }
-//}
-//
-//let elapsed = start.duration(to: clock.now)
-//
-//print("\(TRIAL) games")
-//print("Elapsed:", elapsed)
-//print("Average:", elapsed / TRIAL)
+let clock = ContinuousClock()
+let start = clock.now
+let TRIAL = 500_000
+
+for _ in 0..<TRIAL {
+    var game = Game()
+
+    while !game.isGameOver {
+        if game.isPass {
+            game.pass()
+            continue
+        }
+
+        let moves = game.legalMoves
+        let move = moves & ~(moves &- 1)
+
+        do {
+            let position = try Board.square(move)
+            try game.play(position)
+        } catch {
+            print("Error:", error)
+            break
+        }
+    }
+}
+
+let elapsed = start.duration(to: clock.now)
+
+print("\(TRIAL) games")
+print("Elapsed:", elapsed)
+print("Average:", elapsed / TRIAL)
 
 //var game = Game()
 //print(game.board)
@@ -149,17 +149,17 @@ import Foundation
 //    }
 //}
 
-let moves = [
-//    "d3", "c5", "d6", "e3", "b4",
-//    "c3", "d2", "c4", "f4"
-    "d3", "c5", "d6", "c3", "c4",
-    "e3", "c6", "c7", "f3", "g2"
-]
-
-var game = Game()
-
-for move in moves {
-    try! game.play(move)
-}
-
-print(game.board)
+//let moves = [
+////    "d3", "c5", "d6", "e3", "b4",
+////    "c3", "d2", "c4", "f4"
+//    "d3", "c5", "d6", "c3", "c4",
+//    "e3", "c6", "c7", "f3", "g2"
+//]
+//
+//var game = Game()
+//
+//for move in moves {
+//    try! game.play(move)
+//}
+//
+//print(game.board)
