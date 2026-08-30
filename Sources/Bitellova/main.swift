@@ -16,7 +16,7 @@ for _ in 0..<TRIAL {
 
     while !game.isGameOver {
         if game.isPass {
-            game.pass()
+            try game.pass()
             continue
         }
 

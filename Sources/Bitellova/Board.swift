@@ -18,6 +18,22 @@ struct Board: Hashable, CustomStringConvertible {
     // Legal moves are cached because the same position may be queried repeatedly.
     private var cachedLegalMoves: UInt64?
 
+    init(
+        black: UInt64,
+        white: UInt64,
+        turn: Player
+    ) {
+        precondition(
+            black & white == 0,
+            "Black and white discs must not overlap"
+        )
+
+        self.black = black
+        self.white = white
+        self.turn = turn
+        self.cachedLegalMoves = nil
+    }
+
     private static let columnHeader: String = "  A B C D E F G H\n"
 
     private static let shiftAndMask: [(Int, UInt64)] = [
