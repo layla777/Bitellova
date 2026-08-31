@@ -13,8 +13,8 @@ struct Game {
 
     private(set) var board: Board
 
-    init() {
-        board = .initialPosition
+    init(board: Board = .initialPosition) {
+        self.board = board
     }
 
     mutating func play(_ move: UInt64) throws {

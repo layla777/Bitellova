@@ -49,3 +49,14 @@ func illegalMoveDoesNotChangeGameState() {
 
     #expect(game.board == originalBoard)
 }
+
+@Test
+func gameCanStartFromSpecifiedBoard() throws {
+    let initialBoard = Board.initialPosition
+    let specifiedBoard = try initialBoard.playedBoard("d3")
+
+    let game = Game(board: specifiedBoard)
+
+    #expect(game.board == specifiedBoard)
+    #expect(game.board.turn == .white)
+}
