@@ -60,3 +60,65 @@ func gameCanStartFromSpecifiedBoard() throws {
     #expect(game.board == specifiedBoard)
     #expect(game.board.turn == .white)
 }
+
+@Test
+func replayingRecordProducesExpectedBoard() throws {
+    var manualGame = Game()
+    try manualGame.play("f5")
+    try manualGame.play("f6")
+
+    let replayedGame = try Game(replaying: "f5f6")
+
+    #expect(replayedGame.board == manualGame.board)
+    #expect(replayedGame.board.turn == .black)
+}
+
+@Test
+func incompleteMoveRecordIsRejected() {
+    #expect(throws: Game.GameError.self) {
+        try Game(replaying: "f5f")
+    }
+}
+
+@Test
+func replayCanStartFromSpecifiedBoard() throws {
+    let initialBoard = Board.initialPosition
+    let specifiedBoard = try initialBoard.playedBoard("d3")
+
+    var manualGame = Game(board: specifiedBoard)
+    try manualGame.play("c3")
+
+    let replayedGame = try Game(
+        replaying: "c3",
+        from: specifiedBoard
+    )
+
+    #expect(replayedGame.board == manualGame.board)
+    #expect(replayedGame.board.turn == .black)
+}
+
+@Test
+func replayAutomaticallyPassesWhenRequired() throws {
+    let passRequiredBoard = Board(
+        // Black: b1
+        black:
+            0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000,
+
+        // White: a1
+        white:
+            0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000,
+
+        turn: .black
+    )
+
+    var manualGame = Game(board: passRequiredBoard)
+    try manualGame.pass()
+    try manualGame.play("c1")
+
+    let replayedGame = try Game(
+        replaying: "c1",
+        from: passRequiredBoard
+    )
+
+    #expect(replayedGame.board == manualGame.board)
+}

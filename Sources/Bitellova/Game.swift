@@ -9,12 +9,47 @@ struct Game {
     enum GameError: Error {
         case passNotAllowed
         case gameAlreadyOver
+        case incompleteMoveRecord
     }
 
     private(set) var board: Board
 
     init(board: Board = .initialPosition) {
         self.board = board
+    }
+
+    init(
+        replaying record: String,
+        from board: Board = .initialPosition
+    ) throws {
+        self.init(board: board)
+
+        guard record.count.isMultiple(of: 2) else {
+            throw GameError.incompleteMoveRecord
+        }
+
+        var start = record.startIndex
+
+        while start < record.endIndex {
+            let end = record.index(start, offsetBy: 2)
+            let position = String(record[start..<end])
+
+            let gameIsOver = isGameOver
+
+            guard !gameIsOver else {
+                throw GameError.gameAlreadyOver
+            }
+
+            let mustPass = isPass
+
+            if mustPass {
+                try pass()
+            }
+
+            try play(position)
+
+            start = end
+        }
     }
 
     mutating func play(_ move: UInt64) throws {
