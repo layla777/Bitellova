@@ -20,6 +20,7 @@ func newGameStartsFromInitialPosition() {
     let initialLegalMoves = initialBoard.legalMoves
 
     #expect(gameLegalMoves == initialLegalMoves)
+    #expect(game.currentPlayer == .black)
 }
 
 @Test
@@ -36,6 +37,8 @@ func stringAndBitMovesProduceTheSamePosition() throws {
 
     #expect(stringGame.board == bitGame.board)
     #expect(stringGame.board.turn == .white)
+    #expect(stringGame.currentPlayer == .white)
+    #expect(bitGame.currentPlayer == .white)
 }
 
 @Test
@@ -168,4 +171,42 @@ func replayingCompleteGameProducesKnownFinalPosition() throws {
 
     #expect(score?.black == 14)
     #expect(score?.white == 50)
+
+    let outcome = game.outcome
+    #expect(outcome == .whiteWin)
+}
+
+@Test
+func terminalGamesReportTheirOutcomes() {
+    var blackGame = Game(
+        board: Board(
+            black: UInt64(1) << 63,
+            white: 0,
+            turn: .black
+        )
+    )
+
+    var whiteGame = Game(
+        board: Board(
+            black: 0,
+            white: 1,
+            turn: .white
+        )
+    )
+
+    var drawGame = Game(
+        board: Board(
+            black: UInt64(1) << 63,
+            white: 1,
+            turn: .black
+        )
+    )
+
+    let blackOutcome = blackGame.outcome
+    let whiteOutcome = whiteGame.outcome
+    let drawOutcome = drawGame.outcome
+
+    #expect(blackOutcome == .blackWin)
+    #expect(whiteOutcome == .whiteWin)
+    #expect(drawOutcome == .draw)
 }

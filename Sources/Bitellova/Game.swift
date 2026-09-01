@@ -20,6 +20,10 @@ package struct Game {
 
     private(set) var board: Board
 
+    package var currentPlayer: Player {
+        board.turn
+    }
+
     package init() {
         self.init(board: .initialPosition)
     }

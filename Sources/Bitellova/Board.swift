@@ -7,11 +7,6 @@
 
 import Foundation
 
-enum Player: UInt8, Hashable {
-    case black
-    case white
-}
-
 struct Board: Hashable, CustomStringConvertible {
     private(set) var black: UInt64
     private(set) var white: UInt64
