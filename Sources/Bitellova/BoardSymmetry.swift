@@ -16,94 +16,41 @@ package enum BoardSymmetry: CaseIterable, Sendable {
     case reflectAntiDiagonal
 
     package func transform(_ bits: UInt64) -> UInt64 {
-        var remaining = bits
-        var transformed: UInt64 = 0
+        switch self {
+        case .identity:
+            return bits
 
-        while remaining != 0 {
-            let sourceBit =
-                remaining
-                & ~(remaining &- 1)
+        case .rotate90Clockwise:
+            return Self.reverseFiles(
+                Self.transposeMainDiagonal(bits)
+            )
 
-            let sourceBitPosition =
-                sourceBit.trailingZeroBitCount
+        case .rotate180:
+            return Self.reverseFiles(
+                Self.reverseRanks(bits)
+            )
 
-            let sourceIndex =
-                63 - sourceBitPosition
+        case .rotate270Clockwise:
+            return Self.reverseRanks(
+                Self.transposeMainDiagonal(bits)
+            )
 
-            let sourceRank = sourceIndex / 8
-            let sourceFile = sourceIndex % 8
+        case .flipLeftRight:
+            return Self.reverseFiles(bits)
 
-            let destination:
-                (
-                    rank: Int,
-                    file: Int
+        case .flipTopBottom:
+            return Self.reverseRanks(bits)
+
+        case .reflectMainDiagonal:
+            return Self.transposeMainDiagonal(bits)
+
+        case .reflectAntiDiagonal:
+            return Self.reverseFiles(
+                Self.reverseRanks(
+                    Self.transposeMainDiagonal(bits)
                 )
-
-            switch self {
-            case .identity:
-                destination = (
-                    sourceRank,
-                    sourceFile
-                )
-
-            case .rotate90Clockwise:
-                destination = (
-                    sourceFile,
-                    7 - sourceRank
-                )
-
-            case .rotate180:
-                destination = (
-                    7 - sourceRank,
-                    7 - sourceFile
-                )
-
-            case .rotate270Clockwise:
-                destination = (
-                    7 - sourceFile,
-                    sourceRank
-                )
-
-            case .flipLeftRight:
-                destination = (
-                    sourceRank,
-                    7 - sourceFile
-                )
-
-            case .flipTopBottom:
-                destination = (
-                    7 - sourceRank,
-                    sourceFile
-                )
-
-            case .reflectMainDiagonal:
-                destination = (
-                    sourceFile,
-                    sourceRank
-                )
-
-            case .reflectAntiDiagonal:
-                destination = (
-                    7 - sourceFile,
-                    7 - sourceRank
-                )
-            }
-
-            let destinationIndex =
-                destination.rank * 8
-                + destination.file
-
-            let destinationBitPosition =
-                63 - destinationIndex
-
-            transformed |=
-                UInt64(1)
-                << destinationBitPosition
-
-            remaining &= remaining &- 1
+            )
         }
-
-        return transformed
     }
 
     package var inverse: BoardSymmetry {
@@ -181,5 +128,71 @@ extension Board {
             board: bestBoard,
             symmetry: bestSymmetry
         )
+    }
+}
+
+private extension BoardSymmetry {
+    static func reverseFiles(
+        _ bits: UInt64
+    ) -> UInt64 {
+        var value = bits
+
+        value =
+            ((value >> 1)
+                & 0x5555_5555_5555_5555)
+            | ((value
+                & 0x5555_5555_5555_5555)
+                << 1)
+
+        value =
+            ((value >> 2)
+                & 0x3333_3333_3333_3333)
+            | ((value
+                & 0x3333_3333_3333_3333)
+                << 2)
+
+        value =
+            ((value >> 4)
+                & 0x0F0F_0F0F_0F0F_0F0F)
+            | ((value
+                & 0x0F0F_0F0F_0F0F_0F0F)
+                << 4)
+
+        return value
+    }
+
+    static func reverseRanks(
+        _ bits: UInt64
+    ) -> UInt64 {
+        bits.byteSwapped
+    }
+
+    static func transposeMainDiagonal(
+        _ bits: UInt64
+    ) -> UInt64 {
+        var value = bits
+
+        var swap =
+            (value ^ (value >> 7))
+            & 0x00AA_00AA_00AA_00AA
+
+        value ^=
+            swap ^ (swap << 7)
+
+        swap =
+            (value ^ (value >> 14))
+            & 0x0000_CCCC_0000_CCCC
+
+        value ^=
+            swap ^ (swap << 14)
+
+        swap =
+            (value ^ (value >> 28))
+            & 0x0000_0000_F0F0_F0F0
+
+        value ^=
+            swap ^ (swap << 28)
+
+        return value
     }
 }
