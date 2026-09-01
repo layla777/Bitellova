@@ -4,8 +4,7 @@
 //
 //  Created by ideguti masaya on 2026/08/25.
 //
-
-struct Game {
+package struct Game {
     enum GameError: Error {
         case passNotAllowed
         case gameAlreadyOver
@@ -14,7 +13,11 @@ struct Game {
 
     private(set) var board: Board
 
-    init(board: Board = .initialPosition) {
+    package init() {
+        self.init(board: .initialPosition)
+    }
+
+    init(board: Board) {
         self.board = board
     }
 
@@ -62,15 +65,15 @@ struct Game {
         }
     }
 
-    mutating func play(_ move: UInt64) throws {
+    package mutating func play(_ move: UInt64) throws {
         board = try board.playedBoard(move)
     }
 
-    mutating func play(_ position: String) throws {
+    package mutating func play(_ position: String) throws {
         board = try board.playedBoard(position)
     }
 
-    mutating func pass() throws {
+    package mutating func pass() throws {
         guard !isGameOver else {
             throw GameError.gameAlreadyOver
         }
@@ -82,19 +85,19 @@ struct Game {
         board = board.passedBoard()
     }
 
-    var legalMoves: UInt64 {
+    package var legalMoves: UInt64 {
         mutating get {
             board.legalMoves
         }
     }
 
-    var isPass: Bool {
+    package var isPass: Bool {
         mutating get {
             board.isPass
         }
     }
 
-    var isGameOver: Bool {
+    package var isGameOver: Bool {
         mutating get {
             board.isGameOver
         }

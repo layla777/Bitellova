@@ -5,6 +5,8 @@
 //  Created by ideguti masaya on 2026/08/25.
 //
 
+import Foundation
+
 enum Player: UInt8, Hashable {
     case black
     case white

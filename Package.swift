@@ -7,13 +7,27 @@ let package = Package(
     platforms: [
         .macOS(.v13)
     ],
+    products: [
+        .library(
+            name: "Bitellova",
+            targets: ["Bitellova"]
+        ),
+        .executable(
+            name: "bitellova-profile",
+            targets: ["BitellovaProfile"]
+        ),
+    ],
     targets: [
-        .executableTarget(
+        .target(
             name: "Bitellova"
+        ),
+        .executableTarget(
+            name: "BitellovaProfile",
+            dependencies: ["Bitellova"]
         ),
         .testTarget(
             name: "BitellovaTests",
             dependencies: ["Bitellova"]
-        )
+        ),
     ]
 )
