@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Board: Hashable, CustomStringConvertible {
+package struct Board: Hashable, CustomStringConvertible {
     private(set) var black: UInt64
     private(set) var white: UInt64
     private(set) var turn: Player
@@ -176,7 +176,7 @@ struct Board: Hashable, CustomStringConvertible {
 
     // MARK: - Display
 
-    var description: String {
+    package var description: String {
         var board = "\n"
 
         // This deliberately calculates the moves without updating the cache.
@@ -513,11 +513,11 @@ struct Board: Hashable, CustomStringConvertible {
 
     // MARK: - Hashable
 
-    static func == (lhs: Board, rhs: Board) -> Bool {
+    package static func == (lhs: Board, rhs: Board) -> Bool {
         lhs.black == rhs.black && lhs.white == rhs.white && lhs.turn == rhs.turn
     }
 
-    func hash(into hasher: inout Hasher) {
+    package func hash(into hasher: inout Hasher) {
         hasher.combine(black)
         hasher.combine(white)
         hasher.combine(turn)

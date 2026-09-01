@@ -97,7 +97,7 @@ extension Board {
 }
 
 extension Board {
-    func canonicalized() -> (
+    package func canonicalized() -> (
         board: Board,
         symmetry: BoardSymmetry
     ) {
