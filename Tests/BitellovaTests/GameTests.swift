@@ -122,3 +122,16 @@ func replayAutomaticallyPassesWhenRequired() throws {
 
     #expect(replayedGame.board == manualGame.board)
 }
+
+@Test(arguments: [
+    "F5F6",
+    "f5 f6",
+    "f5\nf6",
+])
+
+func replayAcceptsFormattedRecords(_ record: String) throws {
+    let expectedGame = try Game(replaying: "f5f6")
+    let replayedGame = try Game(replaying: record)
+
+    #expect(replayedGame.board == expectedGame.board)
+}

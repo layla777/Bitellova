@@ -24,15 +24,25 @@ struct Game {
     ) throws {
         self.init(board: board)
 
-        guard record.count.isMultiple(of: 2) else {
+        let normalizedRecord = String(
+            record.filter { !$0.isWhitespace }
+        )
+
+        guard normalizedRecord.count.isMultiple(of: 2) else {
             throw GameError.incompleteMoveRecord
         }
 
-        var start = record.startIndex
+        var start = normalizedRecord.startIndex
 
-        while start < record.endIndex {
-            let end = record.index(start, offsetBy: 2)
-            let position = String(record[start..<end])
+        while start < normalizedRecord.endIndex {
+            let end = normalizedRecord.index(
+                start,
+                offsetBy: 2
+            )
+
+            let position = String(
+                normalizedRecord[start..<end]
+            )
 
             let gameIsOver = isGameOver
 
