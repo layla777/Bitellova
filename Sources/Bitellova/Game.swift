@@ -4,7 +4,14 @@
 //
 //  Created by ideguti masaya on 2026/08/25.
 //
+
 package struct Game {
+    package enum Outcome: Equatable {
+        case blackWin
+        case whiteWin
+        case draw
+    }
+
     enum GameError: Error {
         case passNotAllowed
         case gameAlreadyOver
@@ -100,6 +107,24 @@ package struct Game {
     package var isGameOver: Bool {
         mutating get {
             board.isGameOver
+        }
+    }
+
+    package var outcome: Outcome? {
+        mutating get {
+            guard let score = board.finalScore else {
+                return nil
+            }
+
+            if score.black > score.white {
+                return .blackWin
+            }
+
+            if score.white > score.black {
+                return .whiteWin
+            }
+
+            return .draw
         }
     }
 }
