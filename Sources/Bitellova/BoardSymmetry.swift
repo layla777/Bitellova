@@ -15,6 +15,7 @@ package enum BoardSymmetry: CaseIterable, Sendable {
     case reflectMainDiagonal
     case reflectAntiDiagonal
 
+    @inline(__always)
     package func transform(_ bits: UInt64) -> UInt64 {
         switch self {
         case .identity:
@@ -83,6 +84,7 @@ package enum BoardSymmetry: CaseIterable, Sendable {
 }
 
 extension Board {
+    @inline(__always)
     func transformed(
         by symmetry: BoardSymmetry
     ) -> Board {
@@ -99,19 +101,11 @@ extension Board {
         board: Board,
         symmetry: BoardSymmetry
     ) {
-        var bestSymmetry =
-            BoardSymmetry.identity
+        var bestBoard = transformed(by: .identity)
+        var bestSymmetry = BoardSymmetry.identity
 
-        var bestBoard = transformed(
-            by: bestSymmetry
-        )
-
-        for symmetry
-            in BoardSymmetry.allCases.dropFirst()
-        {
-            let candidate = transformed(
-                by: symmetry
-            )
+        func consider(_ symmetry: BoardSymmetry) {
+            let candidate = transformed(by: symmetry)
 
             let comesBeforeBest =
                 candidate.black < bestBoard.black
@@ -124,6 +118,14 @@ extension Board {
             }
         }
 
+        consider(.rotate90Clockwise)
+        consider(.rotate180)
+        consider(.rotate270Clockwise)
+        consider(.flipLeftRight)
+        consider(.flipTopBottom)
+        consider(.reflectMainDiagonal)
+        consider(.reflectAntiDiagonal)
+
         return (
             board: bestBoard,
             symmetry: bestSymmetry
@@ -131,8 +133,8 @@ extension Board {
     }
 }
 
-private extension BoardSymmetry {
-    static func reverseFiles(
+extension BoardSymmetry {
+    fileprivate static func reverseFiles(
         _ bits: UInt64
     ) -> UInt64 {
         var value = bits
@@ -161,13 +163,13 @@ private extension BoardSymmetry {
         return value
     }
 
-    static func reverseRanks(
+    fileprivate static func reverseRanks(
         _ bits: UInt64
     ) -> UInt64 {
         bits.byteSwapped
     }
 
-    static func transposeMainDiagonal(
+    fileprivate static func transposeMainDiagonal(
         _ bits: UInt64
     ) -> UInt64 {
         var value = bits

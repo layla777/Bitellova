@@ -47,9 +47,29 @@ func transformAllSymmetries(
 ) -> UInt64 {
     var checksum: UInt64 = 0
 
-    for symmetry in BoardSymmetry.allCases {
-        checksum &+= symmetry.transform(bits)
-    }
+    checksum &+=
+        BoardSymmetry.identity.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.rotate90Clockwise.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.rotate180.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.rotate270Clockwise.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.flipLeftRight.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.flipTopBottom.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.reflectMainDiagonal.transform(bits)
+
+    checksum &+=
+        BoardSymmetry.reflectAntiDiagonal.transform(bits)
 
     return checksum
 }
