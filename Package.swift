@@ -16,6 +16,10 @@ let package = Package(
             name: "bitellova-profile",
             targets: ["BitellovaProfile"]
         ),
+        .library(
+            name: "BitellovaAI",
+            targets: ["BitellovaAI"]
+        ),
     ],
     targets: [
         .target(
@@ -28,6 +32,17 @@ let package = Package(
         .testTarget(
             name: "BitellovaTests",
             dependencies: ["Bitellova"]
+        ),
+        .target(
+            name: "BitellovaAI",
+            dependencies: ["Bitellova"]
+        ),
+        .testTarget(
+            name: "BitellovaAITests",
+            dependencies: [
+                "Bitellova",
+                "BitellovaAI",
+            ]
         ),
     ]
 )
