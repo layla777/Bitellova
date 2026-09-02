@@ -371,3 +371,94 @@ func oneMCTSIterationVisitsRootAndOneRootEdge() throws {
             .contains(rootNode.valueSum)
     )
 }
+
+@Test
+func repeatedMCTSIterationsProduceMostVisitedLegalMove() throws {
+    var board =
+        Board.initialPosition
+
+    let legalMoves =
+        board.legalMoves
+
+    var generator =
+        SplitMix64(seed: 42)
+
+    var mcts = MCTS()
+
+    let iterationCount = 64
+
+    for _ in 0..<iterationCount {
+        try mcts.runIteration(
+            from: board,
+            using: &generator
+        )
+    }
+
+    let rootNode =
+        try #require(
+            mcts.node(for: board)
+        )
+
+    #expect(
+        rootNode.visits
+            == iterationCount
+    )
+
+    let totalEdgeVisits =
+        rootNode.edges.reduce(0) {
+            $0 + $1.visits
+        }
+
+    #expect(
+        totalEdgeVisits
+            == iterationCount
+    )
+
+    #expect(
+        rootNode.edges.allSatisfy {
+            $0.visits > 0
+        }
+    )
+
+    #expect(mcts.nodeCount > 2)
+
+    let selectedMove =
+        try #require(
+            mcts.bestMove(for: board)
+        )
+
+    #expect(
+        selectedMove.nonzeroBitCount == 1
+    )
+
+    #expect(
+        legalMoves & selectedMove != 0
+    )
+
+    let canonical =
+        board.canonicalized()
+
+    let canonicalMove =
+        canonical.symmetry.transform(
+            selectedMove
+        )
+
+    let selectedEdge =
+        try #require(
+            rootNode.edges.first {
+                $0.move == canonicalMove
+            }
+        )
+
+    let highestVisitCount =
+        try #require(
+            rootNode.edges
+                .map { $0.visits }
+                .max()
+        )
+
+    #expect(
+        selectedEdge.visits
+            == highestVisitCount
+    )
+}

@@ -115,6 +115,31 @@ struct Node {
 
         return selectedIndex
     }
+
+    func mostVisitedEdgeIndex() -> Int? {
+        guard
+            let firstIndex =
+                edges.indices.first
+        else {
+            return nil
+        }
+
+        var bestIndex = firstIndex
+
+        for index in edges.indices.dropFirst() {
+            if edges[index].visits
+                > edges[bestIndex].visits
+            {
+                bestIndex = index
+            }
+        }
+
+        guard edges[bestIndex].visits > 0 else {
+            return nil
+        }
+
+        return bestIndex
+    }
 }
 
 struct MCTS {
@@ -398,5 +423,28 @@ struct MCTS {
             outcome: finalOutcome,
             through: path
         )
+    }
+
+    func bestMove(
+        for board: Board
+    ) -> UInt64? {
+        let canonical =
+            board.canonicalized()
+
+        guard
+            let node =
+                nodes[canonical.board],
+            let edgeIndex =
+                node.mostVisitedEdgeIndex()
+        else {
+            return nil
+        }
+
+        let canonicalMove =
+            node.edges[edgeIndex].move
+
+        return canonical.symmetry
+            .inverse
+            .transform(canonicalMove)
     }
 }
