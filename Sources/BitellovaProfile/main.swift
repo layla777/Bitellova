@@ -361,6 +361,172 @@ func profileMCTSAgainstRandom(
     )
 }
 
+@inline(never)
+func playMCTSAgainstMonteCarlo<
+    MCTSGenerator: RandomNumberGenerator,
+    MonteCarloGenerator: RandomNumberGenerator
+>(
+    mctsColor: Player,
+    mctsPlayer: MCTSPlayer,
+    monteCarloPlayer: MonteCarloPlayer,
+    using mctsGenerator:
+        inout MCTSGenerator,
+    monteCarloGenerator:
+        inout MonteCarloGenerator
+) throws -> Game.Outcome {
+    var game = Game()
+
+    while !game.isGameOver {
+        if game.isPass {
+            try game.pass()
+            continue
+        }
+
+        let move: UInt64
+
+        if game.currentPlayer == mctsColor {
+            move =
+                try mctsPlayer.selectMove(
+                    in: game,
+                    using: &mctsGenerator
+                )
+        } else {
+            move =
+                try monteCarloPlayer.selectMove(
+                    in: game,
+                    using:
+                        &monteCarloGenerator
+                )
+        }
+
+        try game.play(move)
+    }
+
+    guard let outcome = game.outcome else {
+        preconditionFailure(
+            "MCTS versus Monte Carlo game produced no outcome"
+        )
+    }
+
+    return outcome
+}
+
+func profileMCTSAgainstMonteCarlo(
+    gameCount: Int,
+    mctsIterationCount: Int,
+    playoutsPerMove: Int
+) throws {
+    precondition(gameCount > 0)
+    precondition(mctsIterationCount > 0)
+    precondition(playoutsPerMove > 0)
+
+    let mctsPlayer = MCTSPlayer(
+        iterationCount:
+            mctsIterationCount
+    )
+
+    let monteCarloPlayer =
+        MonteCarloPlayer(
+            playoutsPerMove:
+                playoutsPerMove
+        )
+
+    var mctsGenerator =
+        SplitMix64(seed: 42)
+
+    var monteCarloGenerator =
+        SplitMix64(seed: 44)
+
+    var mctsWins = 0
+    var monteCarloWins = 0
+    var draws = 0
+
+    var mctsWinsAsBlack = 0
+    var mctsWinsAsWhite = 0
+
+    let clock = ContinuousClock()
+    let start = clock.now
+
+    for gameIndex in 0..<gameCount {
+        let mctsColor: Player =
+            gameIndex.isMultiple(of: 2)
+            ? .black
+            : .white
+
+        let outcome =
+            try playMCTSAgainstMonteCarlo(
+                mctsColor: mctsColor,
+                mctsPlayer: mctsPlayer,
+                monteCarloPlayer:
+                    monteCarloPlayer,
+                using: &mctsGenerator,
+                monteCarloGenerator:
+                    &monteCarloGenerator
+            )
+
+        switch outcome {
+        case .draw:
+            draws += 1
+
+        case .blackWin:
+            if mctsColor == .black {
+                mctsWins += 1
+                mctsWinsAsBlack += 1
+            } else {
+                monteCarloWins += 1
+            }
+
+        case .whiteWin:
+            if mctsColor == .white {
+                mctsWins += 1
+                mctsWinsAsWhite += 1
+            } else {
+                monteCarloWins += 1
+            }
+        }
+    }
+
+    let elapsed =
+        start.duration(to: clock.now)
+
+    let mctsScore =
+        (Double(mctsWins)
+            + Double(draws) * 0.5)
+        / Double(gameCount)
+
+    print(
+        "\(gameCount) MCTS versus Monte Carlo games"
+    )
+    print(
+        "MCTS iterations per move:",
+        mctsIterationCount
+    )
+    print(
+        "Monte Carlo playouts per legal move:",
+        playoutsPerMove
+    )
+    print("MCTS wins:", mctsWins)
+    print(
+        "Monte Carlo wins:",
+        monteCarloWins
+    )
+    print("Draws:", draws)
+    print(
+        "MCTS wins as Black:",
+        mctsWinsAsBlack
+    )
+    print(
+        "MCTS wins as White:",
+        mctsWinsAsWhite
+    )
+    print("MCTS score rate:", mctsScore)
+    print("Elapsed:", elapsed)
+    print(
+        "Average:",
+        elapsed / gameCount
+    )
+}
+
 let arguments =
     CommandLine.arguments.dropFirst()
 
@@ -420,6 +586,30 @@ case "match":
         iterationCount: iterationCount
     )
 
+case "mcts-mc":
+    let gameCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 100
+
+    let mctsIterationCount =
+        arguments.dropFirst(2).first
+        .flatMap(Int.init)
+        ?? 64
+
+    let playoutsPerMove =
+        arguments.dropFirst(3).first
+        .flatMap(Int.init)
+        ?? 8
+
+    try profileMCTSAgainstMonteCarlo(
+        gameCount: gameCount,
+        mctsIterationCount:
+            mctsIterationCount,
+        playoutsPerMove:
+            playoutsPerMove
+    )
+
 default:
     fatalError(
         """
@@ -428,6 +618,7 @@ default:
           bitellova-profile symmetry [count]
           bitellova-profile mcts [games] [iterations]
           bitellova-profile match [games] [iterations]
+          bitellova-profile mcts-mc [games] [mcts-iterations] [mc-playouts-per-move]
         """
     )
 }
