@@ -15,7 +15,16 @@ struct RandomPlayout {
         var game = initialGame
         let randomPlayer = RandomPlayer()
 
+        var plyCount = 0
+
         while !game.isGameOver {
+            plyCount += 1
+
+            precondition(
+                plyCount <= 128,
+                "Random playout appears not to terminate"
+            )
+
             if game.isPass {
                 try game.pass()
                 continue

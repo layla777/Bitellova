@@ -65,7 +65,10 @@ struct Node {
                 remainingMoves &- 1
         }
 
-        if edges.isEmpty && mutableBoard.isPass {
+        if edges.isEmpty
+            && !mutableBoard.isGameOver
+            && mutableBoard.isPass
+        {
             // A zero move represents a pass.
             edges.append(
                 Edge(move: 0)
@@ -317,8 +320,20 @@ struct MCTS {
             RandomPlayout()
 
         var finalOutcome: Game.Outcome?
+        var selectionDepth = 0
 
         while finalOutcome == nil {
+            selectionDepth += 1
+
+            precondition(
+                selectionDepth <= 128,
+                """
+                MCTS selection exceeded 128 nodes \
+                at board:
+                \(currentBoard)
+                """
+            )
+
             guard
                 let node =
                     nodes[currentBoard]

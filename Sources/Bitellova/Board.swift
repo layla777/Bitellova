@@ -428,7 +428,7 @@ package struct Board: Hashable, CustomStringConvertible {
                 && passedBoard().calculateLegalMoves() == 0)
     }
 
-    var isGameOver: Bool {
+    package var isGameOver: Bool {
         mutating get {
             if emptySquares == 0 {
                 return true
