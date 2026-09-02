@@ -27,7 +27,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "BitellovaProfile",
-            dependencies: ["Bitellova"]
+            dependencies: [
+                "Bitellova",
+                "BitellovaAI",
+            ]
         ),
         .testTarget(
             name: "BitellovaTests",

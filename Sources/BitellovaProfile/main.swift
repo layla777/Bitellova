@@ -6,6 +6,7 @@
 //
 
 import Bitellova
+import BitellovaAI
 
 @inline(never)
 func playOneGame() throws {
@@ -74,6 +75,99 @@ func transformAllSymmetries(
     return checksum
 }
 
+@inline(never)
+func playOneMCTSGame<
+    R: RandomNumberGenerator
+>(
+    with player: MCTSPlayer,
+    using generator: inout R
+) throws -> Game.Outcome {
+    var game = Game()
+
+    while !game.isGameOver {
+        if game.isPass {
+            try game.pass()
+            continue
+        }
+
+        let move =
+            try player.selectMove(
+                in: game,
+                using: &generator
+            )
+
+        try game.play(move)
+    }
+
+    guard let outcome = game.outcome else {
+        preconditionFailure(
+            "MCTS self-play did not produce an outcome"
+        )
+    }
+
+    return outcome
+}
+
+func profileMCTSGames(
+    gameCount: Int,
+    iterationCount: Int
+) throws {
+    precondition(gameCount > 0)
+    precondition(iterationCount > 0)
+
+    let player = MCTSPlayer(
+        iterationCount: iterationCount
+    )
+
+    var generator =
+        SplitMix64(seed: 42)
+
+    var blackWins = 0
+    var whiteWins = 0
+    var draws = 0
+
+    let clock = ContinuousClock()
+    let start = clock.now
+
+    for _ in 0..<gameCount {
+        let outcome =
+            try playOneMCTSGame(
+                with: player,
+                using: &generator
+            )
+
+        switch outcome {
+        case .blackWin:
+            blackWins += 1
+
+        case .whiteWin:
+            whiteWins += 1
+
+        case .draw:
+            draws += 1
+        }
+    }
+
+    let elapsed =
+        start.duration(to: clock.now)
+
+    print(
+        "\(gameCount) MCTS self-play games"
+    )
+    print(
+        "Iterations per move:",
+        iterationCount
+    )
+    print("Black wins:", blackWins)
+    print("White wins:", whiteWins)
+    print("Draws:", draws)
+    print("Elapsed:", elapsed)
+    print(
+        "Average:",
+        elapsed / gameCount
+    )
+}
+
 func profileSymmetries(iterations: Int) {
     precondition(iterations > 0)
 
@@ -140,8 +234,29 @@ case "symmetry":
         iterations: iterations
     )
 
+case "mcts":
+    let gameCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 100
+
+    let iterationCount =
+        arguments.dropFirst(2).first
+        .flatMap(Int.init)
+        ?? 4
+
+    try profileMCTSGames(
+        gameCount: gameCount,
+        iterationCount: iterationCount
+    )
+
 default:
     fatalError(
-        "Usage: bitellova-profile [games|symmetry] [count]"
+        """
+        Usage:
+          bitellova-profile games [count]
+          bitellova-profile symmetry [count]
+          bitellova-profile mcts [games] [iterations]
+        """
     )
 }
