@@ -110,24 +110,69 @@ struct Node {
 }
 
 struct MCTS {
+    static let defaultExplorationConstant = 2.0.squareRoot()
+
+    let explorationConstant: Double
+
     private var nodes: [Board: Node] = [:]
+
+    init(
+        explorationConstant: Double = defaultExplorationConstant
+    ) {
+        precondition(
+            explorationConstant >= 0
+        )
+
+        self.explorationConstant = explorationConstant
+
+    }
 
     var nodeCount: Int {
         nodes.count
     }
 
+    @discardableResult
     mutating func ensureNode(
         for board: Board
+    ) -> (
+        board: Board,
+        symmetry: BoardSymmetry
     ) {
-        let canonicalBoard =
-            board.canonicalized().board
+        let canonical =
+            board.canonicalized()
 
-        guard nodes[canonicalBoard] == nil else {
-            return
+        if nodes[canonical.board] == nil {
+            nodes[canonical.board] = Node(
+                board: canonical.board
+            )
         }
 
-        nodes[canonicalBoard] = Node(
-            board: canonicalBoard
-        )
+        return canonical
+    }
+
+    mutating func selectedMove(
+        for board: Board
+    ) -> UInt64? {
+        let canonical =
+            ensureNode(for: board)
+
+        guard
+            let node =
+                nodes[canonical.board],
+            let edgeIndex =
+                node.selectedEdgeIndex(
+                    explorationConstant:
+                        explorationConstant
+                )
+        else {
+            return nil
+        }
+
+        let canonicalMove =
+            node.edges[edgeIndex].move
+
+        return canonical.symmetry
+            .inverse
+            .transform(canonicalMove)
     }
 }

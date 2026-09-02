@@ -137,3 +137,26 @@ func nodeSelectsEdgeWithHighestAverageWhenExplorationIsZero() {
         selectedIndex == strongestIndex
     )
 }
+
+@Test
+func mctsSelectsLegalMoveInOriginalOrientation() {
+    var board = Board.initialPosition
+    let legalMoves = board.legalMoves
+
+    var mcts = MCTS(
+        explorationConstant: 1.5
+    )
+
+    let selectedMove =
+        mcts.selectedMove(for: board)
+
+    #expect(
+        selectedMove?.nonzeroBitCount == 1
+    )
+
+    #expect(
+        selectedMove.map {
+            legalMoves & $0 != 0
+        } == true
+    )
+}
