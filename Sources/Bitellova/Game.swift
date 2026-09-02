@@ -28,7 +28,7 @@ package struct Game {
         self.init(board: .initialPosition)
     }
 
-    init(board: Board) {
+    package init(board: Board) {
         self.board = board
     }
 

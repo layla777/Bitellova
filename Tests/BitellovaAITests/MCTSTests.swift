@@ -203,3 +203,171 @@ func expandingInitialNodeCreatesCanonicalChild() throws {
         )
     }
 }
+
+@Test
+func backpropagationUpdatesNodeAndSelectedEdge() throws {
+    let board = Board.initialPosition
+
+    var mcts = MCTS()
+
+    let canonical =
+        mcts.ensureNode(for: board)
+
+    let path = [
+        MCTS.PathEntry(
+            canonicalBoard: canonical.board,
+            edgeIndex: 0
+        )
+    ]
+
+    mcts.backpropagate(
+        outcome: .blackWin,
+        through: path
+    )
+
+    let updatedNode =
+        try #require(
+            mcts.node(for: board)
+        )
+
+    #expect(updatedNode.visits == 1)
+    #expect(updatedNode.valueSum == 1.0)
+
+    #expect(
+        updatedNode.edges[0].visits == 1
+    )
+
+    #expect(
+        updatedNode.edges[0].valueSum
+            == 1.0
+    )
+}
+
+@Test
+func backpropagationUsesEachNodesPlayerPerspective() throws {
+    let rootBoard =
+        Board.initialPosition
+
+    var mcts = MCTS()
+
+    let canonicalRoot =
+        mcts.ensureNode(
+            for: rootBoard
+        ).board
+
+    let rootNode =
+        try #require(
+            mcts.node(
+                for: canonicalRoot
+            )
+        )
+
+    let edgeIndex =
+        try #require(
+            rootNode.edges.indices.first
+        )
+
+    let move =
+        rootNode.edges[edgeIndex].move
+
+    let childBoard =
+        try canonicalRoot
+        .playedBoard(move)
+        .canonicalized()
+        .board
+
+    mcts.ensureNode(
+        for: childBoard
+    )
+
+    let path = [
+        MCTS.PathEntry(
+            canonicalBoard:
+                canonicalRoot,
+            edgeIndex: edgeIndex
+        ),
+
+        MCTS.PathEntry(
+            canonicalBoard:
+                childBoard,
+            edgeIndex: nil
+        ),
+    ]
+
+    mcts.backpropagate(
+        outcome: .blackWin,
+        through: path
+    )
+
+    let updatedRoot =
+        try #require(
+            mcts.node(
+                for: canonicalRoot
+            )
+        )
+
+    let updatedChild =
+        try #require(
+            mcts.node(
+                for: childBoard
+            )
+        )
+
+    #expect(updatedRoot.visits == 1)
+    #expect(updatedRoot.valueSum == 1.0)
+
+    #expect(
+        updatedRoot.edges[edgeIndex]
+            .visits == 1
+    )
+
+    #expect(
+        updatedRoot.edges[edgeIndex]
+            .valueSum == 1.0
+    )
+
+    #expect(updatedChild.visits == 1)
+    #expect(updatedChild.valueSum == -1.0)
+
+    #expect(
+        updatedChild.edges.allSatisfy {
+            $0.visits == 0
+        }
+    )
+}
+
+@Test
+func oneMCTSIterationVisitsRootAndOneRootEdge() throws {
+    let board =
+        Board.initialPosition
+
+    var generator =
+        SplitMix64(seed: 42)
+
+    var mcts = MCTS()
+
+    try mcts.runIteration(
+        from: board,
+        using: &generator
+    )
+
+    let rootNode =
+        try #require(
+            mcts.node(for: board)
+        )
+
+    #expect(rootNode.visits == 1)
+
+    let totalEdgeVisits =
+        rootNode.edges.reduce(0) {
+            $0 + $1.visits
+        }
+
+    #expect(totalEdgeVisits == 1)
+    #expect(mcts.nodeCount >= 2)
+
+    #expect(
+        [-1.0, 0.0, 1.0]
+            .contains(rootNode.valueSum)
+    )
+}

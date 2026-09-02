@@ -22,6 +22,7 @@ struct Edge {
         }
 
         precondition(parentVisits > 0)
+        precondition(parentVisits >= visits)
         precondition(explorationConstant >= 0)
 
         let averageValue =
@@ -117,21 +118,28 @@ struct Node {
 }
 
 struct MCTS {
-    static let defaultExplorationConstant = 2.0.squareRoot()
+    struct PathEntry {
+        let canonicalBoard: Board
+        let edgeIndex: Int?
+    }
+
+    static let defaultExplorationConstant =
+        2.0.squareRoot()
 
     let explorationConstant: Double
 
     private var nodes: [Board: Node] = [:]
 
     init(
-        explorationConstant: Double = defaultExplorationConstant
+        explorationConstant: Double =
+            MCTS.defaultExplorationConstant
     ) {
         precondition(
             explorationConstant >= 0
         )
 
-        self.explorationConstant = explorationConstant
-
+        self.explorationConstant =
+            explorationConstant
     }
 
     var nodeCount: Int {
@@ -218,5 +226,177 @@ struct MCTS {
             ensureNode(for: childBoard)
 
         return canonicalChild.board
+    }
+
+    func node(
+        for board: Board
+    ) -> Node? {
+        let canonicalBoard =
+            board.canonicalized().board
+
+        return nodes[canonicalBoard]
+    }
+
+    mutating func backpropagate(
+        outcome: Game.Outcome,
+        through path: [PathEntry]
+    ) {
+        for entry in path {
+            guard
+                var node =
+                    nodes[entry.canonicalBoard]
+            else {
+                preconditionFailure(
+                    "Backpropagation path contains an unknown node"
+                )
+            }
+
+            let reward = Double(
+                outcome.reward(
+                    for: node.board.turn
+                )
+            )
+
+            node.visits += 1
+            node.valueSum += reward
+
+            if let edgeIndex =
+                entry.edgeIndex
+            {
+                precondition(
+                    node.edges.indices
+                        .contains(edgeIndex)
+                )
+
+                node.edges[edgeIndex].visits += 1
+                node.edges[edgeIndex].valueSum +=
+                    reward
+            }
+
+            nodes[entry.canonicalBoard] = node
+        }
+    }
+
+    mutating func runIteration<
+        R: RandomNumberGenerator
+    >(
+        from board: Board,
+        using generator: inout R
+    ) throws {
+        var path: [PathEntry] = []
+
+        var currentBoard =
+            ensureNode(for: board).board
+
+        let randomPlayout =
+            RandomPlayout()
+
+        var finalOutcome: Game.Outcome?
+
+        while finalOutcome == nil {
+            guard
+                let node =
+                    nodes[currentBoard]
+            else {
+                preconditionFailure(
+                    "Current MCTS node is missing"
+                )
+            }
+
+            guard
+                let edgeIndex =
+                    node.selectedEdgeIndex(
+                        explorationConstant:
+                            explorationConstant
+                    )
+            else {
+                path.append(
+                    PathEntry(
+                        canonicalBoard:
+                            currentBoard,
+                        edgeIndex: nil
+                    )
+                )
+
+                var terminalGame =
+                    Game(board: currentBoard)
+
+                guard
+                    let outcome =
+                        terminalGame.outcome
+                else {
+                    preconditionFailure(
+                        "MCTS node without edges is not terminal"
+                    )
+                }
+
+                finalOutcome = outcome
+                continue
+            }
+
+            let edge =
+                node.edges[edgeIndex]
+
+            path.append(
+                PathEntry(
+                    canonicalBoard:
+                        currentBoard,
+                    edgeIndex: edgeIndex
+                )
+            )
+
+            let childBoard: Board
+
+            if edge.move == 0 {
+                childBoard =
+                    currentBoard.passedBoard()
+            } else {
+                childBoard =
+                    try currentBoard.playedBoard(edge.move)
+            }
+
+            let canonicalChild =
+                ensureNode(
+                    for: childBoard
+                ).board
+
+            if edge.visits == 0 {
+                path.append(
+                    PathEntry(
+                        canonicalBoard:
+                            canonicalChild,
+                        edgeIndex: nil
+                    )
+                )
+
+                let rolloutGame =
+                    Game(
+                        board:
+                            canonicalChild
+                    )
+
+                finalOutcome =
+                    try randomPlayout.outcome(
+                        from: rolloutGame,
+                        using: &generator
+                    )
+
+                continue
+            }
+
+            currentBoard =
+                canonicalChild
+        }
+
+        guard let finalOutcome else {
+            preconditionFailure(
+                "MCTS iteration produced no outcome"
+            )
+        }
+
+        backpropagate(
+            outcome: finalOutcome,
+            through: path
+        )
     }
 }

@@ -10,7 +10,7 @@ import Foundation
 package struct Board: Hashable, CustomStringConvertible {
     private(set) var black: UInt64
     private(set) var white: UInt64
-    private(set) var turn: Player
+    package private(set) var turn: Player
 
     // Legal moves are cached because the same position may be queried repeatedly.
     private var cachedLegalMoves: UInt64?
