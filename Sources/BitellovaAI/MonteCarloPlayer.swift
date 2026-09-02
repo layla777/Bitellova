@@ -19,6 +19,8 @@ package struct MonteCarloPlayer {
         in game: Game,
         using generator: inout R
     ) throws -> UInt64 {
+        let randomPlayout = RandomPlayout()
+
         let rootPlayer = game.currentPlayer
 
         var gameForMoves = game
@@ -43,16 +45,11 @@ package struct MonteCarloPlayer {
                 var rollout = game
                 try rollout.play(move)
 
-                try playRandomlyToEnd(
-                    game: &rollout,
-                    using: &generator
-                )
-
-                guard let outcome = rollout.outcome else {
-                    preconditionFailure(
-                        "Random rollout did not reach game over"
+                let outcome =
+                    try randomPlayout.outcome(
+                        from: rollout,
+                        using: &generator
                     )
-                }
 
                 totalReward += reward(
                     for: outcome,
@@ -67,28 +64,6 @@ package struct MonteCarloPlayer {
         }
 
         return bestMove
-    }
-
-    private func playRandomlyToEnd<R: RandomNumberGenerator>(
-        game: inout Game,
-        using generator: inout R
-    ) throws {
-        let randomPlayer = RandomPlayer()
-
-        while !game.isGameOver {
-            if game.isPass {
-                try game.pass()
-                continue
-            }
-
-            let legalMoves = game.legalMoves
-            let move = randomPlayer.selectMove(
-                from: legalMoves,
-                using: &generator
-            )
-
-            try game.play(move)
-        }
     }
 
     private func reward(
