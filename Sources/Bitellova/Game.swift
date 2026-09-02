@@ -18,7 +18,7 @@ package struct Game {
         case incompleteMoveRecord
     }
 
-    private(set) var board: Board
+    package private(set) var board: Board
 
     package var currentPlayer: Player {
         board.turn
