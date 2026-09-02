@@ -51,9 +51,8 @@ package struct MonteCarloPlayer {
                         using: &generator
                     )
 
-                totalReward += reward(
-                    for: outcome,
-                    from: rootPlayer
+                totalReward += outcome.reward(
+                    for: rootPlayer
                 )
             }
 
@@ -64,21 +63,5 @@ package struct MonteCarloPlayer {
         }
 
         return bestMove
-    }
-
-    private func reward(
-        for outcome: Game.Outcome,
-        from player: Player
-    ) -> Int {
-        switch (outcome, player) {
-        case (.blackWin, .black), (.whiteWin, .white):
-            return 1
-
-        case (.draw, _):
-            return 0
-
-        default:
-            return -1
-        }
     }
 }
