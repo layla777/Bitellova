@@ -29,3 +29,25 @@ func symmetricBoardsShareOneMCTSNode() throws {
 
     #expect(mcts.nodeCount == 1)
 }
+
+@Test
+func newNodeHasOneUnvisitedEdgePerLegalMove() {
+    var board = Board.initialPosition
+    let legalMoves = board.legalMoves
+
+    let node = Node(board: board)
+
+    let edgeMoves = node.edges.reduce(UInt64(0)) {
+        $0 | $1.move
+    }
+
+    #expect(node.edges.count == legalMoves.nonzeroBitCount)
+    #expect(edgeMoves == legalMoves)
+
+    #expect(
+        node.edges.allSatisfy {
+            $0.visits == 0
+                && $0.valueSum == 0
+        }
+    )
+}

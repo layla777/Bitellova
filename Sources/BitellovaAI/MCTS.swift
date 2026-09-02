@@ -17,7 +17,32 @@ struct Node {
     let board: Board
     var visits = 0
     var valueSum = 0.0
-    var edges: [Edge] = []
+    var edges: [Edge]
+
+    init(board: Board) {
+        var mutableBoard = board
+        var remainingMoves =
+            mutableBoard.legalMoves
+
+        var edges: [Edge] = []
+
+        while remainingMoves != 0 {
+            let move =
+                remainingMoves
+                & ~(remainingMoves &- 1)
+
+            edges.append(
+                Edge(move: move)
+            )
+
+            remainingMoves &=
+                remainingMoves &- 1
+        }
+
+        self.board = board
+        self.edges = edges
+    }
+
 }
 
 struct MCTS {

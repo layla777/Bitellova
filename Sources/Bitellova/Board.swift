@@ -122,7 +122,7 @@ package struct Board: Hashable, CustomStringConvertible {
         ~(black | white)
     }
 
-    var legalMoves: UInt64 {
+    package var legalMoves: UInt64 {
         mutating get {
             if let cachedLegalMoves {
                 return cachedLegalMoves
