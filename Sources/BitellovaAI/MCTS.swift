@@ -6,11 +6,36 @@
 //
 
 import Bitellova
+import Foundation
 
 struct Edge {
     let move: UInt64
     var visits = 0
     var valueSum = 0.0
+
+    func uctScore(
+        parentVisits: Int,
+        explorationConstant: Double
+    ) -> Double {
+        guard visits > 0 else {
+            return .infinity
+        }
+
+        precondition(parentVisits > 0)
+        precondition(explorationConstant >= 0)
+
+        let averageValue =
+            valueSum / Double(visits)
+
+        let exploration =
+            explorationConstant
+            * sqrt(
+                log(Double(parentVisits))
+                    / Double(visits)
+            )
+
+        return averageValue + exploration
+    }
 }
 
 struct Node {
@@ -43,6 +68,45 @@ struct Node {
         self.edges = edges
     }
 
+    func selectedEdgeIndex(
+        explorationConstant: Double
+    ) -> Int? {
+        precondition(
+            explorationConstant >= 0
+        )
+
+        guard
+            let firstIndex =
+                edges.indices.first
+        else {
+            return nil
+        }
+
+        var selectedIndex = firstIndex
+
+        var selectedScore =
+            edges[firstIndex].uctScore(
+                parentVisits: visits,
+                explorationConstant:
+                    explorationConstant
+            )
+
+        for index in edges.indices.dropFirst() {
+            let score =
+                edges[index].uctScore(
+                    parentVisits: visits,
+                    explorationConstant:
+                        explorationConstant
+                )
+
+            if score > selectedScore {
+                selectedIndex = index
+                selectedScore = score
+            }
+        }
+
+        return selectedIndex
+    }
 }
 
 struct MCTS {

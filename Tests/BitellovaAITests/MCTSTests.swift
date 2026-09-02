@@ -5,6 +5,7 @@
 //  Created by ideguti masaya on 2026/09/02.
 //
 
+import Foundation
 import Testing
 
 @testable import Bitellova
@@ -49,5 +50,90 @@ func newNodeHasOneUnvisitedEdgePerLegalMove() {
             $0.visits == 0
                 && $0.valueSum == 0
         }
+    )
+}
+
+@Test
+func unvisitedEdgeHasInfiniteUCTScore() {
+    let edge = Edge(move: 1)
+
+    let score = edge.uctScore(
+        parentVisits: 1,
+        explorationConstant: 1.5
+    )
+
+    #expect(score == .infinity)
+}
+
+@Test
+func visitedEdgeUCTScoreCombinesValueAndExploration() {
+    var edge = Edge(move: 1)
+    edge.visits = 4
+    edge.valueSum = 2.0
+
+    let score = edge.uctScore(
+        parentVisits: 16,
+        explorationConstant: 1.5
+    )
+
+    let expected =
+        0.5
+        + 1.5
+        * sqrt(log(16.0) / 4.0)
+
+    #expect(
+        abs(score - expected) < 1e-12
+    )
+}
+
+@Test
+func nodeSelectsItsOnlyUnvisitedEdge() {
+    var node = Node(
+        board: .initialPosition
+    )
+
+    for index in node.edges.indices {
+        node.edges[index].visits = 1
+    }
+
+    let unvisitedIndex = 2
+    node.edges[unvisitedIndex].visits = 0
+    node.visits =
+        node.edges.count - 1
+
+    let selectedIndex =
+        node.selectedEdgeIndex(
+            explorationConstant: 1.5
+        )
+
+    #expect(
+        selectedIndex == unvisitedIndex
+    )
+}
+
+@Test
+func nodeSelectsEdgeWithHighestAverageWhenExplorationIsZero() {
+    var node = Node(
+        board: .initialPosition
+    )
+
+    for index in node.edges.indices {
+        node.edges[index].visits = 1
+        node.edges[index].valueSum = 0
+    }
+
+    let strongestIndex = 1
+    node.edges[strongestIndex].valueSum =
+        0.75
+
+    node.visits = node.edges.count
+
+    let selectedIndex =
+        node.selectedEdgeIndex(
+            explorationConstant: 0
+        )
+
+    #expect(
+        selectedIndex == strongestIndex
     )
 }
