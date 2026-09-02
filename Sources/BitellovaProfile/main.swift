@@ -207,6 +207,160 @@ func profileSymmetries(iterations: Int) {
     )
 }
 
+@inline(never)
+func playMCTSAgainstRandom<
+    MCTSGenerator: RandomNumberGenerator,
+    RandomGenerator: RandomNumberGenerator
+>(
+    mctsColor: Player,
+    mctsPlayer: MCTSPlayer,
+    randomPlayer: RandomPlayer,
+    using mctsGenerator:
+        inout MCTSGenerator,
+    randomGenerator:
+        inout RandomGenerator
+) throws -> Game.Outcome {
+    var game = Game()
+
+    while !game.isGameOver {
+        if game.isPass {
+            try game.pass()
+            continue
+        }
+
+        let move: UInt64
+
+        if game.currentPlayer == mctsColor {
+            move =
+                try mctsPlayer.selectMove(
+                    in: game,
+                    using: &mctsGenerator
+                )
+        } else {
+            let legalMoves =
+                game.legalMoves
+
+            move =
+                randomPlayer.selectMove(
+                    from: legalMoves,
+                    using: &randomGenerator
+                )
+        }
+
+        try game.play(move)
+    }
+
+    guard let outcome = game.outcome else {
+        preconditionFailure(
+            "MCTS versus Random game produced no outcome"
+        )
+    }
+
+    return outcome
+}
+
+func profileMCTSAgainstRandom(
+    gameCount: Int,
+    iterationCount: Int
+) throws {
+    precondition(gameCount > 0)
+    precondition(iterationCount > 0)
+
+    let mctsPlayer = MCTSPlayer(
+        iterationCount: iterationCount
+    )
+
+    let randomPlayer =
+        RandomPlayer()
+
+    var mctsGenerator =
+        SplitMix64(seed: 42)
+
+    var randomGenerator =
+        SplitMix64(seed: 43)
+
+    var mctsWins = 0
+    var randomWins = 0
+    var draws = 0
+
+    var mctsWinsAsBlack = 0
+    var mctsWinsAsWhite = 0
+
+    let clock = ContinuousClock()
+    let start = clock.now
+
+    for gameIndex in 0..<gameCount {
+        let mctsColor: Player =
+            gameIndex.isMultiple(of: 2)
+            ? .black
+            : .white
+
+        let outcome =
+            try playMCTSAgainstRandom(
+                mctsColor: mctsColor,
+                mctsPlayer: mctsPlayer,
+                randomPlayer: randomPlayer,
+                using: &mctsGenerator,
+                randomGenerator:
+                    &randomGenerator
+            )
+
+        switch outcome {
+        case .draw:
+            draws += 1
+
+        case .blackWin:
+            if mctsColor == .black {
+                mctsWins += 1
+                mctsWinsAsBlack += 1
+            } else {
+                randomWins += 1
+            }
+
+        case .whiteWin:
+            if mctsColor == .white {
+                mctsWins += 1
+                mctsWinsAsWhite += 1
+            } else {
+                randomWins += 1
+            }
+        }
+    }
+
+    let elapsed =
+        start.duration(to: clock.now)
+
+    let mctsScore =
+        (Double(mctsWins)
+            + Double(draws) * 0.5)
+        / Double(gameCount)
+
+    print(
+        "\(gameCount) MCTS versus Random games"
+    )
+    print(
+        "MCTS iterations per move:",
+        iterationCount
+    )
+    print("MCTS wins:", mctsWins)
+    print("Random wins:", randomWins)
+    print("Draws:", draws)
+    print(
+        "MCTS wins as Black:",
+        mctsWinsAsBlack
+    )
+    print(
+        "MCTS wins as White:",
+        mctsWinsAsWhite
+    )
+    print("MCTS score rate:", mctsScore)
+    print("Elapsed:", elapsed)
+    print(
+        "Average:",
+        elapsed / gameCount
+    )
+}
+
 let arguments =
     CommandLine.arguments.dropFirst()
 
@@ -250,6 +404,22 @@ case "mcts":
         iterationCount: iterationCount
     )
 
+case "match":
+    let gameCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 1_000
+
+    let iterationCount =
+        arguments.dropFirst(2).first
+        .flatMap(Int.init)
+        ?? 64
+
+    try profileMCTSAgainstRandom(
+        gameCount: gameCount,
+        iterationCount: iterationCount
+    )
+
 default:
     fatalError(
         """
@@ -257,6 +427,7 @@ default:
           bitellova-profile games [count]
           bitellova-profile symmetry [count]
           bitellova-profile mcts [games] [iterations]
+          bitellova-profile match [games] [iterations]
         """
     )
 }
