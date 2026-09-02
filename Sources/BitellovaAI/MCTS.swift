@@ -64,6 +64,13 @@ struct Node {
                 remainingMoves &- 1
         }
 
+        if edges.isEmpty && mutableBoard.isPass {
+            // A zero move represents a pass.
+            edges.append(
+                Edge(move: 0)
+            )
+        }
+
         self.board = board
         self.edges = edges
     }

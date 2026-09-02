@@ -160,3 +160,23 @@ func mctsSelectsLegalMoveInOriginalOrientation() {
         } == true
     )
 }
+
+@Test
+func passNodeHasSinglePassEdge() {
+    let board = Board(
+        // Black: b1
+        black:
+            0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000,
+
+        // White: a1
+        white:
+            0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000,
+
+        turn: .black
+    )
+
+    let node = Node(board: board)
+
+    #expect(node.edges.count == 1)
+    #expect(node.edges.first?.move == 0)
+}

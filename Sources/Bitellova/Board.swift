@@ -405,7 +405,7 @@ package struct Board: Hashable, CustomStringConvertible {
         return 0
     }
 
-    var isPass: Bool {
+    package var isPass: Bool {
         mutating get {
             legalMoves == 0
         }
