@@ -146,7 +146,7 @@ package struct Board: Hashable, CustomStringConvertible {
     /// Returns the position after playing the specified square.
     ///
     /// The current board is not modified. A new board is returned instead.
-    func playedBoard(_ move: UInt64) throws -> Board {
+    package func playedBoard(_ move: UInt64) throws -> Board {
         let flipped = flips(for: move)
 
         guard flipped != 0 else {
@@ -411,7 +411,7 @@ package struct Board: Hashable, CustomStringConvertible {
         }
     }
 
-    func passedBoard() -> Board {
+    package func passedBoard() -> Board {
         let nextTurn: Player = turn == .black ? .white : .black
         return Board(
             black: black,

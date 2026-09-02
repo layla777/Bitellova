@@ -180,3 +180,26 @@ func passNodeHasSinglePassEdge() {
     #expect(node.edges.count == 1)
     #expect(node.edges.first?.move == 0)
 }
+
+@Test
+func expandingInitialNodeCreatesCanonicalChild() throws {
+    let board = Board.initialPosition
+
+    var mcts = MCTS()
+    mcts.ensureNode(for: board)
+
+    #expect(mcts.nodeCount == 1)
+
+    let child =
+        try mcts.expand(from: board)
+
+    #expect(child != nil)
+    #expect(mcts.nodeCount == 2)
+
+    if let child {
+        #expect(
+            child
+                == child.canonicalized().board
+        )
+    }
+}

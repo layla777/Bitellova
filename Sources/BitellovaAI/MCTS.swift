@@ -182,4 +182,41 @@ struct MCTS {
             .inverse
             .transform(canonicalMove)
     }
+
+    mutating func expand(
+        from board: Board
+    ) throws -> Board? {
+        let canonical =
+            ensureNode(for: board)
+
+        guard
+            let node =
+                nodes[canonical.board],
+            let edgeIndex =
+                node.selectedEdgeIndex(
+                    explorationConstant:
+                        explorationConstant
+                )
+        else {
+            return nil
+        }
+
+        let move =
+            node.edges[edgeIndex].move
+
+        let childBoard: Board
+
+        if move == 0 {
+            childBoard =
+                canonical.board.passedBoard()
+        } else {
+            childBoard =
+                try canonical.board.playedBoard(move)
+        }
+
+        let canonicalChild =
+            ensureNode(for: childBoard)
+
+        return canonicalChild.board
+    }
 }
