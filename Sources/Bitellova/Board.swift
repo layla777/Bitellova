@@ -495,12 +495,14 @@ package struct Board: Hashable, CustomStringConvertible {
     }
 
     /// Converts a bit into its corresponding square such as "f5"
-    static func square(_ bit: UInt64) throws -> String {
+    package static func square(_ bit: UInt64) throws -> String {
         guard bit.nonzeroBitCount == 1 else {
             throw ValueError.invalidValue
         }
 
-        return squareNames[bit.leadingZeroBitCount]
+        return squareNames[
+            bit.leadingZeroBitCount
+        ]
     }
 
     private static func shifted(

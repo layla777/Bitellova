@@ -81,8 +81,13 @@ func playOneMCTSGame<
 >(
     with player: MCTSPlayer,
     using generator: inout R
-) throws -> Game.Outcome {
+) throws -> (
+    outcome: Game.Outcome,
+    moves: [UInt64]
+) {
     var game = Game()
+    var moves: [UInt64] = []
+    moves.reserveCapacity(60)
 
     while !game.isGameOver {
         if game.isPass {
@@ -97,6 +102,7 @@ func playOneMCTSGame<
             )
 
         try game.play(move)
+        moves.append(move)
     }
 
     guard let outcome = game.outcome else {
@@ -105,7 +111,7 @@ func playOneMCTSGame<
         )
     }
 
-    return outcome
+    return (outcome, moves)
 }
 
 func profileMCTSGames(
@@ -126,17 +132,22 @@ func profileMCTSGames(
     var whiteWins = 0
     var draws = 0
 
+    var gameMoves: [[UInt64]] = []
+    gameMoves.reserveCapacity(gameCount)
+
     let clock = ContinuousClock()
     let start = clock.now
 
     for _ in 0..<gameCount {
-        let outcome =
+        let result =
             try playOneMCTSGame(
                 with: player,
                 using: &generator
             )
 
-        switch outcome {
+        gameMoves.append(result.moves)
+
+        switch result.outcome {
         case .blackWin:
             blackWins += 1
 
@@ -166,6 +177,18 @@ func profileMCTSGames(
         "Average:",
         elapsed / gameCount
     )
+
+    for (index, moves) in gameMoves.enumerated() {
+        let transcript =
+            try moves
+                .map { try Board.square($0) }
+                .joined()
+
+        print(
+            "Game \(index + 1):",
+            transcript
+        )
+    }
 }
 
 func profileSymmetries(iterations: Int) {
