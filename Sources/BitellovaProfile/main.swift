@@ -550,6 +550,256 @@ func profileMCTSAgainstMonteCarlo(
     )
 }
 
+private struct ExactBenchmarkPosition {
+    let emptySquareCount: Int
+    let record: String
+    let expectedMove: String
+    let expectedScore: Int
+}
+
+private let exactBenchmarkPositions = [
+    ExactBenchmarkPosition(
+        emptySquareCount: 8,
+        record:
+            """
+            e6f6d3c5b6b5g6c3c6g7b4d2
+            c2c1d1f4f3h6e3e7f7e8b3c4
+            f5e1b2c7d8e2d6a2d7c8f8a3
+            a1g5f2g3h5h7g8a4g2h2h8g4
+            h1b7h3h4
+            """,
+        expectedMove: "a6",
+        expectedScore: 42
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 10,
+        record:
+            """
+            e6f6d3c5b6b5g6c3c6g7b4d2
+            c2c1d1f4f3h6e3e7f7e8b3c4
+            f5e1b2c7d8e2d6a2d7c8f8a3
+            a1g5f2g3h5h7g8a4g2h2h8g4
+            h1b7
+            """,
+        expectedMove: "a6",
+        expectedScore: 48
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 12,
+        record:
+            """
+            c4e3f3c3e6e7c2g3d3b2f7g7
+            f4f5a2b3d6c6d7e8g5f6h2e2
+            f8h6a4a3d8h3h5a1e1g8g4d2
+            h4g6b4b5b7d1c5c8h8h7c1b1
+            """,
+        expectedMove: "g2",
+        expectedScore: -24
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 14,
+        record:
+            """
+            d3c5e6f7b5e3g8b6b7e7f5g4
+            d7a7h3e8f3b4a5f4b3h4h5g6
+            g7c7h7c6c8d8c4c3d2d6a6a2
+            b2c2b1a8g3f6f8d1c1a1
+            """,
+        expectedMove: "e2",
+        expectedScore: -34
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 16,
+        record:
+            """
+            d3c5e6f7b5e3g8b6b7e7f5g4
+            d7a7h3e8f3b4a5f4b3h4h5g6
+            g7c7h7c6c8d8c4c3d2d6a6a2
+            b2c2b1a8g3f6f8d1
+            """,
+        expectedMove: "c1",
+        expectedScore: -38
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 18,
+        record:
+            """
+            d3c5e6f7b5e3g8b6b7e7f5g4
+            d7a7h3e8f3b4a5f4b3h4h5g6
+            g7c7h7c6c8d8c4c3d2d6a6a2
+            b2c2b1a8g3f6
+            """,
+        expectedMove: "f8",
+        expectedScore: -42
+    ),
+    ExactBenchmarkPosition(
+        emptySquareCount: 20,
+        record:
+            """
+            d3c5e6f7b5e3g8b6b7e7f5g4
+            d7a7h3e8f3b4a5f4b3h4h5g6
+            g7c7h7c6c8d8c4c3d2d6a6a2
+            b2c2b1a8
+            """,
+        expectedMove: "f8",
+        expectedScore: -48
+    ),
+]
+
+func profileExactSearches(
+    trialCount: Int
+) throws {
+    precondition(trialCount > 0)
+
+    let player = ExactPlayer()
+    let clock = ContinuousClock()
+
+    var checksum: UInt64 = 0
+
+    print("Exact search benchmark")
+    print(
+        "Trials per position:",
+        trialCount
+    )
+
+    for position
+        in exactBenchmarkPositions
+    {
+        let game =
+            try Game(
+                replaying: position.record
+            )
+
+        var selectedMove: UInt64 = 0
+        var score = 0
+        var nodeCount = 0
+        var cutoffCount = 0
+        var transpositionCount = 0
+        var transpositionHitCount = 0
+
+        let start = clock.now
+
+        for _ in 0..<trialCount {
+            let analysis =
+                try player.analyze(
+                    in: game
+                )
+
+            transpositionCount =
+                analysis.transpositionCount
+
+            transpositionHitCount =
+                analysis.transpositionHitCount
+
+            selectedMove =
+                analysis.move
+
+            score =
+                analysis.score
+
+            nodeCount =
+                analysis.nodeCount
+
+            cutoffCount =
+                analysis.cutoffCount
+
+            checksum &+=
+                analysis.move
+
+            checksum &+=
+                UInt64(
+                    analysis.score + 64
+                )
+
+            checksum &+=
+                UInt64(
+                    analysis.nodeCount
+                )
+
+            checksum &+=
+                UInt64(
+                    analysis.cutoffCount
+                )
+
+            checksum &+=
+                UInt64(
+                    analysis.transpositionCount
+                )
+
+            checksum &+=
+                UInt64(
+                    analysis.transpositionHitCount
+                )
+        }
+
+        let elapsed =
+            start.duration(to: clock.now)
+
+        let selectedSquare =
+            try Board.square(
+                selectedMove
+            )
+
+        precondition(
+            selectedSquare
+                == position.expectedMove,
+            """
+            Exact search selected \
+            \(selectedSquare), expected \
+            \(position.expectedMove)
+            """
+        )
+
+        precondition(
+            score
+                == position.expectedScore,
+            """
+            Exact search produced score \
+            \(score), expected \
+            \(position.expectedScore)
+            """
+        )
+
+        print()
+        print(
+            "Empty squares:",
+            position.emptySquareCount
+        )
+        print(
+            "Best move:",
+            selectedSquare
+        )
+        print("Score:", score)
+        print(
+            "Nodes per search:",
+            nodeCount
+        )
+        print(
+            "Cutoffs per search:",
+            cutoffCount
+        )
+        print(
+            "Transposition entries per search:",
+            transpositionCount
+        )
+        print(
+            "Transposition hits per search:",
+            transpositionHitCount
+        )
+        print("Elapsed:", elapsed)
+        print(
+            "Average:",
+            elapsed / trialCount
+        )
+    }
+
+    print()
+    print(
+        "Checksum:",
+        String(checksum, radix: 16)
+    )
+}
+
 let arguments =
     CommandLine.arguments.dropFirst()
 
@@ -633,6 +883,16 @@ case "mcts-mc":
             playoutsPerMove
     )
 
+case "exact":
+    let trialCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 10
+
+    try profileExactSearches(
+        trialCount: trialCount
+    )
+
 default:
     fatalError(
         """
@@ -642,6 +902,7 @@ default:
           bitellova-profile mcts [games] [iterations]
           bitellova-profile match [games] [iterations]
           bitellova-profile mcts-mc [games] [mcts-iterations] [mc-playouts-per-move]
+          bitellova-profile exact [trials-per-position]
         """
     )
 }

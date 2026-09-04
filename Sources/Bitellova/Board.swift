@@ -122,6 +122,10 @@ package struct Board: Hashable, CustomStringConvertible {
         ~(black | white)
     }
 
+    package var emptySquareCount: Int {
+        emptySquares.nonzeroBitCount
+    }
+
     package var legalMoves: UInt64 {
         mutating get {
             if let cachedLegalMoves {
@@ -460,7 +464,7 @@ package struct Board: Hashable, CustomStringConvertible {
         return (32, 32)
     }
 
-    var finalScore: (black: Int, white: Int)? {
+    package var finalScore: (black: Int, white: Int)? {
         calculateFinalScore(legalMoves: calculateLegalMoves())
     }
 

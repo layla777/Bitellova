@@ -32,7 +32,7 @@ package struct Game {
         self.board = board
     }
 
-    init(
+    package init(
         replaying record: String,
         from board: Board = .initialPosition
     ) throws {
