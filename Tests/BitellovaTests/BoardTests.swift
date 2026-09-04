@@ -199,3 +199,76 @@ func passChangesTurnWhenOpponentHasALegalMove() {
     #expect(passed.white == board.white)
     #expect(passedLegalMoves == c1)
 }
+
+@Test
+func SIMDFlipsMatchReferenceForReachablePositions() throws {
+    for gameNumber in 0..<64 {
+        var board = Board.initialPosition
+        var ply = 0
+
+        while !board.isGameOver {
+            if board.isPass {
+                board = board.passedBoard()
+                continue
+            }
+
+            let legalMoves = board.legalMoves
+            var remainingMoves = legalMoves
+
+            while remainingMoves != 0 {
+                let move =
+                    remainingMoves
+                    & ~(remainingMoves &- 1)
+
+                remainingMoves &=
+                    remainingMoves &- 1
+
+                #expect(
+                    board.flipsUsingSIMD(
+                        for: move
+                    )
+                        == board.flips(
+                            for: move
+                        )
+                )
+            }
+
+            let selectedIndex =
+                (gameNumber + ply * 7)
+                % legalMoves.nonzeroBitCount
+
+            let selectedMove =
+                setBit(
+                    in: legalMoves,
+                    at: selectedIndex
+                )
+
+            board =
+                try board.playedBoard(
+                    selectedMove
+                )
+
+            ply += 1
+        }
+    }
+}
+
+private func setBit(
+    in bits: UInt64,
+    at index: Int
+) -> UInt64 {
+    precondition(
+        0..<bits.nonzeroBitCount
+            ~= index
+    )
+
+    var remainingBits = bits
+
+    for _ in 0..<index {
+        remainingBits &=
+            remainingBits &- 1
+    }
+
+    return remainingBits
+        & ~(remainingBits &- 1)
+}

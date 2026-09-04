@@ -151,7 +151,7 @@ package struct Board: Hashable, CustomStringConvertible {
     ///
     /// The current board is not modified. A new board is returned instead.
     package func playedBoard(_ move: UInt64) throws -> Board {
-        let flipped = flips(for: move)
+        let flipped = flipsUsingSIMD(for: move)
 
         guard flipped != 0 else {
             throw MoveError.invalidMove
@@ -285,7 +285,8 @@ package struct Board: Hashable, CustomStringConvertible {
         )
         let empty = SIMD2<UInt64>(repeating: emptySquares)
 
-        var moves = SIMD2<UInt64>.zero
+        var moves =
+            SIMD2<UInt64>.zero
 
         moves |= Self.legalMovesShiftedLeft(
             own: own,
@@ -409,6 +410,114 @@ package struct Board: Hashable, CustomStringConvertible {
         return 0
     }
 
+    func flipsUsingSIMD(
+        for move: UInt64
+    ) -> UInt64 {
+        // A legal move must contain exactly one bit and target an empty square.
+        guard move.nonzeroBitCount == 1,
+            (black | white) & move == 0
+        else {
+            return 0
+        }
+
+        let move =
+            SIMD2<UInt64>(
+                repeating: move
+            )
+
+        let own =
+            SIMD2<UInt64>(
+                repeating:
+                    turn == .black
+                    ? black
+                    : white
+            )
+
+        let opponent =
+            SIMD2<UInt64>(
+                repeating:
+                    turn == .black
+                    ? white
+                    : black
+            )
+
+        var allFlips: UInt64 = 0
+
+        let leftFirst =
+            Self.flipsShiftedLeft(
+                from: move,
+                own: own,
+                opponent: opponent,
+                shifts:
+                    Self.leftShiftPairs
+                        .0.shifts,
+                masks:
+                    Self.leftShiftPairs
+                        .0.masks
+            )
+
+        allFlips |=
+            Self.bracketedFlips(
+                leftFirst
+            )
+
+        let leftSecond =
+            Self.flipsShiftedLeft(
+                from: move,
+                own: own,
+                opponent: opponent,
+                shifts:
+                    Self.leftShiftPairs
+                        .1.shifts,
+                masks:
+                    Self.leftShiftPairs
+                        .1.masks
+            )
+
+        allFlips |=
+            Self.bracketedFlips(
+                leftSecond
+            )
+
+        let rightFirst =
+            Self.flipsShiftedRight(
+                from: move,
+                own: own,
+                opponent: opponent,
+                shifts:
+                    Self.rightShiftPairs
+                        .0.shifts,
+                masks:
+                    Self.rightShiftPairs
+                        .0.masks
+            )
+
+        allFlips |=
+            Self.bracketedFlips(
+                rightFirst
+            )
+
+        let rightSecond =
+            Self.flipsShiftedRight(
+                from: move,
+                own: own,
+                opponent: opponent,
+                shifts:
+                    Self.rightShiftPairs
+                        .1.shifts,
+                masks:
+                    Self.rightShiftPairs
+                        .1.masks
+            )
+
+        allFlips |=
+            Self.bracketedFlips(
+                rightSecond
+            )
+
+        return allFlips
+    }
+
     package var isPass: Bool {
         mutating get {
             legalMoves == 0
@@ -515,6 +624,85 @@ package struct Board: Hashable, CustomStringConvertible {
         mask: UInt64
     ) -> UInt64 {
         (shift > 0 ? bits >> shift : bits << -shift) & mask
+    }
+
+    private static func flipsShiftedLeft(
+        from move: SIMD2<UInt64>,
+        own: SIMD2<UInt64>,
+        opponent: SIMD2<UInt64>,
+        shifts: SIMD2<UInt64>,
+        masks: SIMD2<UInt64>
+    ) -> (
+        captured: SIMD2<UInt64>,
+        bracketing: SIMD2<UInt64>
+    ) {
+        var captured =
+            ((move &<< shifts) & masks)
+            & opponent
+
+        for _ in 0..<5 {
+            captured |=
+                ((captured &<< shifts) & masks)
+                & opponent
+        }
+
+        let bracketing =
+            ((captured &<< shifts) & masks)
+            & own
+
+        return (
+            captured,
+            bracketing
+        )
+    }
+
+    private static func flipsShiftedRight(
+        from move: SIMD2<UInt64>,
+        own: SIMD2<UInt64>,
+        opponent: SIMD2<UInt64>,
+        shifts: SIMD2<UInt64>,
+        masks: SIMD2<UInt64>
+    ) -> (
+        captured: SIMD2<UInt64>,
+        bracketing: SIMD2<UInt64>
+    ) {
+        var captured =
+            ((move &>> shifts) & masks)
+            & opponent
+
+        for _ in 0..<5 {
+            captured |=
+                ((captured &>> shifts) & masks)
+                & opponent
+        }
+
+        let bracketing =
+            ((captured &>> shifts) & masks)
+            & own
+
+        return (
+            captured,
+            bracketing
+        )
+    }
+
+    private static func bracketedFlips(
+        _ result: (
+            captured: SIMD2<UInt64>,
+            bracketing: SIMD2<UInt64>
+        )
+    ) -> UInt64 {
+        let first =
+            result.bracketing[0] != 0
+            ? result.captured[0]
+            : 0
+
+        let second =
+            result.bracketing[1] != 0
+            ? result.captured[1]
+            : 0
+
+        return first | second
     }
 
     // MARK: - Hashable
