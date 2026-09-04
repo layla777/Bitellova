@@ -224,10 +224,10 @@ func SIMDFlipsMatchReferenceForReachablePositions() throws {
                     remainingMoves &- 1
 
                 #expect(
-                    board.flipsUsingSIMD(
+                    board.flips(
                         for: move
                     )
-                        == board.flips(
+                        == board.flipsReference(
                             for: move
                         )
                 )

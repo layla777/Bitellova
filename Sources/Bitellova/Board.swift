@@ -151,7 +151,7 @@ package struct Board: Hashable, CustomStringConvertible {
     ///
     /// The current board is not modified. A new board is returned instead.
     package func playedBoard(_ move: UInt64) throws -> Board {
-        let flipped = flipsUsingSIMD(for: move)
+        let flipped = flips(for: move)
 
         guard flipped != 0 else {
             throw MoveError.invalidMove
@@ -253,29 +253,6 @@ package struct Board: Hashable, CustomStringConvertible {
 
     // MARK: - Move generation
 
-    private func calculateLegalMovesReference() -> UInt64 {
-        let own = turn == .black ? black : white
-        let opponent = turn == .black ? white : black
-        let empty = emptySquares
-
-        var moves: UInt64 = 0
-
-        for (shift, mask) in Self.shiftAndMask {
-            var captured =
-                Self.shifted(own, by: shift, mask: mask) & opponent
-
-            for _ in 0..<5 {
-                captured |=
-                    Self.shifted(captured, by: shift, mask: mask) & opponent
-            }
-
-            moves |=
-                Self.shifted(captured, by: shift, mask: mask) & empty
-        }
-
-        return moves
-    }
-
     private func calculateLegalMoves() -> UInt64 {
         let own = SIMD2<UInt64>(
             repeating: turn == .black ? black : white
@@ -360,7 +337,7 @@ package struct Board: Hashable, CustomStringConvertible {
         return ((captured &>> shifts) & masks) & empty
     }
 
-    func flips(for move: UInt64) -> UInt64 {
+    func flipsReference(for move: UInt64) -> UInt64 {
         // A legal move must contain exactly one bit and target an empty square.
         guard move.nonzeroBitCount == 1,
             (black | white) & move == 0
@@ -410,7 +387,7 @@ package struct Board: Hashable, CustomStringConvertible {
         return 0
     }
 
-    func flipsUsingSIMD(
+    func flips(
         for move: UInt64
     ) -> UInt64 {
         // A legal move must contain exactly one bit and target an empty square.
@@ -518,106 +495,6 @@ package struct Board: Hashable, CustomStringConvertible {
         return allFlips
     }
 
-    package var isPass: Bool {
-        mutating get {
-            legalMoves == 0
-        }
-    }
-
-    package func passedBoard() -> Board {
-        let nextTurn: Player = turn == .black ? .white : .black
-        return Board(
-            black: black,
-            white: white,
-            turn: nextTurn
-        )
-    }
-
-    private func calculateGameIsOver(
-        legalMoves: UInt64
-    ) -> Bool {
-        emptySquares == 0
-            || (legalMoves == 0
-                && passedBoard().calculateLegalMoves() == 0)
-    }
-
-    package var isGameOver: Bool {
-        mutating get {
-            if emptySquares == 0 {
-                return true
-            }
-
-            return calculateGameIsOver(legalMoves: legalMoves)
-        }
-    }
-
-    private func calculateFinalScore(
-        legalMoves: UInt64
-    ) -> (black: Int, white: Int)? {
-        guard calculateGameIsOver(legalMoves: legalMoves) else {
-            return nil
-        }
-
-        let blackDiscs = black.nonzeroBitCount
-        let whiteDiscs = white.nonzeroBitCount
-        let emptyDiscs = 64 - blackDiscs - whiteDiscs
-
-        if blackDiscs > whiteDiscs {
-            return (blackDiscs + emptyDiscs, whiteDiscs)
-        }
-
-        if whiteDiscs > blackDiscs {
-            return (blackDiscs, whiteDiscs + emptyDiscs)
-        }
-
-        return (32, 32)
-    }
-
-    package var finalScore: (black: Int, white: Int)? {
-        calculateFinalScore(legalMoves: calculateLegalMoves())
-    }
-
-    // MARK: - Internal utilities
-
-    private static let squareNames: [String] = (0..<64).map { index in
-        let file = Character(UnicodeScalar(97 + index % 8)!)
-        let rank = Character(UnicodeScalar(49 + index / 8)!)
-        return "\(file)\(rank)"
-    }
-
-    private static let bitsBySquare: [String: UInt64] = {
-        var result: [String: UInt64] = [:]
-        result.reserveCapacity(128)
-
-        for (index, square) in squareNames.enumerated() {
-            let bit = UInt64(1) << (63 - index)
-            result[square] = bit
-            result[square.uppercased()] = bit
-        }
-
-        return result
-    }()
-
-    /// Converts a square such as "f5" into its corresponding bit.
-    private static func bit(_ square: String) throws -> UInt64 {
-        guard let bit = bitsBySquare[square] else {
-            throw MoveError.invalidMove
-        }
-
-        return bit
-    }
-
-    /// Converts a bit into its corresponding square such as "f5"
-    package static func square(_ bit: UInt64) throws -> String {
-        guard bit.nonzeroBitCount == 1 else {
-            throw ValueError.invalidValue
-        }
-
-        return squareNames[
-            bit.leadingZeroBitCount
-        ]
-    }
-
     private static func shifted(
         _ bits: UInt64,
         by shift: Int,
@@ -703,6 +580,108 @@ package struct Board: Hashable, CustomStringConvertible {
             : 0
 
         return first | second
+    }
+
+    // MARK: Game state
+
+    package var isPass: Bool {
+        mutating get {
+            legalMoves == 0
+        }
+    }
+
+    package func passedBoard() -> Board {
+        let nextTurn: Player = turn == .black ? .white : .black
+        return Board(
+            black: black,
+            white: white,
+            turn: nextTurn
+        )
+    }
+
+    private func calculateGameIsOver(
+        legalMoves: UInt64
+    ) -> Bool {
+        emptySquares == 0
+            || (legalMoves == 0
+                && passedBoard().calculateLegalMoves() == 0)
+    }
+
+    package var isGameOver: Bool {
+        mutating get {
+            if emptySquares == 0 {
+                return true
+            }
+
+            return calculateGameIsOver(legalMoves: legalMoves)
+        }
+    }
+
+    private func calculateFinalScore(
+        legalMoves: UInt64
+    ) -> (black: Int, white: Int)? {
+        guard calculateGameIsOver(legalMoves: legalMoves) else {
+            return nil
+        }
+
+        let blackDiscs = black.nonzeroBitCount
+        let whiteDiscs = white.nonzeroBitCount
+        let emptyDiscs = 64 - blackDiscs - whiteDiscs
+
+        if blackDiscs > whiteDiscs {
+            return (blackDiscs + emptyDiscs, whiteDiscs)
+        }
+
+        if whiteDiscs > blackDiscs {
+            return (blackDiscs, whiteDiscs + emptyDiscs)
+        }
+
+        return (32, 32)
+    }
+
+    package var finalScore: (black: Int, white: Int)? {
+        calculateFinalScore(legalMoves: calculateLegalMoves())
+    }
+
+    // MARK: - SquareConversion
+
+    private static let squareNames: [String] = (0..<64).map { index in
+        let file = Character(UnicodeScalar(97 + index % 8)!)
+        let rank = Character(UnicodeScalar(49 + index / 8)!)
+        return "\(file)\(rank)"
+    }
+
+    private static let bitsBySquare: [String: UInt64] = {
+        var result: [String: UInt64] = [:]
+        result.reserveCapacity(128)
+
+        for (index, square) in squareNames.enumerated() {
+            let bit = UInt64(1) << (63 - index)
+            result[square] = bit
+            result[square.uppercased()] = bit
+        }
+
+        return result
+    }()
+
+    /// Converts a square such as "f5" into its corresponding bit.
+    private static func bit(_ square: String) throws -> UInt64 {
+        guard let bit = bitsBySquare[square] else {
+            throw MoveError.invalidMove
+        }
+
+        return bit
+    }
+
+    /// Converts a bit into its corresponding square such as "f5"
+    package static func square(_ bit: UInt64) throws -> String {
+        guard bit.nonzeroBitCount == 1 else {
+            throw ValueError.invalidValue
+        }
+
+        return squareNames[
+            bit.leadingZeroBitCount
+        ]
     }
 
     // MARK: - Hashable
