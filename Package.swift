@@ -16,6 +16,10 @@ let package = Package(
             name: "bitellova-profile",
             targets: ["BitellovaProfile"]
         ),
+        .executable(
+            name: "bitellova-arena",
+            targets: ["BitellovaArena"]
+        ),
         .library(
             name: "BitellovaAI",
             targets: ["BitellovaAI"]
@@ -30,7 +34,14 @@ let package = Package(
             dependencies: [
                 "Bitellova",
                 "BitellovaAI",
-            ]
+            ],
+        ),
+        .executableTarget(
+            name: "BitellovaArena",
+            dependencies: [
+                "Bitellova",
+                "BitellovaAI",
+            ],
         ),
         .testTarget(
             name: "BitellovaTests",

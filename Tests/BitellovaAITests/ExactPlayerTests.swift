@@ -215,3 +215,125 @@ func exactPlayerUsesTranspositionTable() throws {
         analysis.transpositionHitCount > 0
     )
 }
+
+private func bruteForceScore(
+    _ position: Board
+) throws -> Int {
+    var board = position
+
+    if board.isGameOver {
+        guard let score = board.finalScore else {
+            preconditionFailure(
+                "Terminal board has no final score"
+            )
+        }
+
+        let blackDifference =
+            score.black - score.white
+
+        return board.turn == .black
+            ? blackDifference
+            : -blackDifference
+    }
+
+    if board.isPass {
+        return try -bruteForceScore(
+            board.passedBoard()
+        )
+    }
+
+    var remainingMoves =
+        board.legalMoves
+
+    var bestScore = -65
+
+    while remainingMoves != 0 {
+        let move =
+            remainingMoves
+            & ~(remainingMoves &- 1)
+
+        remainingMoves &=
+            remainingMoves &- 1
+
+        let child =
+            try board.playedBoard(move)
+
+        let score =
+            try -bruteForceScore(child)
+
+        bestScore = max(
+            bestScore,
+            score
+        )
+    }
+
+    return bestScore
+}
+
+@Test
+func exactPlayerChoosesD2AfterForcedPass() throws {
+    var game = try Game(
+        replaying:
+            """
+            d3e3f6c4f3f2b3e6f4f5g6c5d7f7
+            c6h5g3c8g4a2b5h4f1g2f8g5e8e1
+            h1g7d1b4g1d6h3d8b6c7h8a4a5c2
+            e7e2h6b7b8g8a8h2h7a7a3a6a1
+            """
+    )
+
+    let mustPass = game.isPass
+    #expect(mustPass)
+    try game.pass()
+
+    var board = game.board
+    var remainingMoves =
+        board.legalMoves
+
+    var referenceScores: [String: Int] = [:]
+
+    while remainingMoves != 0 {
+        let move =
+            remainingMoves
+            & ~(remainingMoves &- 1)
+
+        remainingMoves &=
+            remainingMoves &- 1
+
+        let child =
+            try board.playedBoard(move)
+
+        referenceScores[
+            try Board.square(move)
+        ] = try -bruteForceScore(child)
+    }
+
+    let analysis =
+        try ExactPlayer().analyze(
+            in: game
+        )
+
+    let exactMove =
+        try Board.square(
+            analysis.move
+        )
+
+    print(
+        "Reference:",
+        referenceScores.sorted {
+            $0.key < $1.key
+        }
+    )
+
+    print(
+        "Exact:",
+        exactMove,
+        analysis.score
+    )
+
+    #expect(referenceScores["b1"] == 34)
+    #expect(referenceScores["d2"] == 40)
+
+    #expect(exactMove == "d2")
+    #expect(analysis.score == 40)
+}
