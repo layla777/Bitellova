@@ -43,6 +43,117 @@ func profileGames(trialCount: Int) throws {
 }
 
 @inline(never)
+func profileMonteCarloPlayouts(
+    gameCount: Int
+) throws {
+    precondition(gameCount > 0)
+
+    let initialGame = Game()
+    let randomPlayout = RandomPlayout()
+
+    var generator =
+        SplitMix64(seed: 42)
+
+    var blackWins = 0
+    var whiteWins = 0
+    var draws = 0
+
+    let clock = ContinuousClock()
+    let start = clock.now
+
+    for _ in 0..<gameCount {
+        let outcome =
+            try randomPlayout.outcome(
+                from: initialGame,
+                using: &generator
+            )
+
+        switch outcome {
+        case .blackWin:
+            blackWins += 1
+
+        case .whiteWin:
+            whiteWins += 1
+
+        case .draw:
+            draws += 1
+        }
+    }
+
+    let elapsed =
+        start.duration(to: clock.now)
+
+    print(
+        "\(gameCount) Monte Carlo random playouts"
+    )
+    print("Seed:", 42)
+    print("Black wins:", blackWins)
+    print("White wins:", whiteWins)
+    print("Draws:", draws)
+    print("Elapsed:", elapsed)
+    print(
+        "Average:",
+        elapsed / gameCount
+    )
+}
+
+@inline(never)
+func profileMonteCarloSelections(
+    trialCount: Int,
+    playoutsPerMove: Int
+) throws {
+    precondition(trialCount > 0)
+    precondition(playoutsPerMove > 0)
+
+    let game = Game()
+
+    let player =
+        MonteCarloPlayer(
+            playoutsPerMove:
+                playoutsPerMove
+        )
+
+    var generator =
+        SplitMix64(seed: 42)
+
+    var checksum: UInt64 = 0
+
+    let clock = ContinuousClock()
+    let start = clock.now
+
+    for _ in 0..<trialCount {
+        let move =
+            try player.selectMove(
+                in: game,
+                using: &generator
+            )
+
+        checksum &+= move
+    }
+
+    let elapsed =
+        start.duration(to: clock.now)
+
+    print(
+        "\(trialCount) Monte Carlo move selections"
+    )
+    print(
+        "Playouts per legal move:",
+        playoutsPerMove
+    )
+    print("Seed:", 42)
+    print("Elapsed:", elapsed)
+    print(
+        "Average:",
+        elapsed / trialCount
+    )
+    print(
+        "Checksum:",
+        String(checksum, radix: 16)
+    )
+}
+
+@inline(never)
 func transformAllSymmetries(
     _ bits: UInt64
 ) -> UInt64 {
@@ -181,8 +292,8 @@ func profileMCTSGames(
     for (index, moves) in gameMoves.enumerated() {
         let transcript =
             try moves
-                .map { try Board.square($0) }
-                .joined()
+            .map { try Board.square($0) }
+            .joined()
 
         print(
             "Game \(index + 1):",
@@ -827,6 +938,32 @@ case "symmetry":
         iterations: iterations
     )
 
+case "monte-carlo":
+    let gameCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 100_000
+
+    try profileMonteCarloPlayouts(
+        gameCount: gameCount
+    )
+
+case "monte-carlo-move":
+    let trialCount =
+        arguments.dropFirst().first
+        .flatMap(Int.init)
+        ?? 10_000
+
+    let playoutsPerMove =
+        arguments.dropFirst(2).first
+        .flatMap(Int.init)
+        ?? 8
+
+    try profileMonteCarloSelections(
+        trialCount: trialCount,
+        playoutsPerMove: playoutsPerMove
+    )
+
 case "mcts":
     let gameCount =
         arguments.dropFirst().first
@@ -898,6 +1035,8 @@ default:
         """
         Usage:
           bitellova-profile games [count]
+          bitellova-profile monte-carlo [games]
+          bitellova-profile monte-carlo-move [trials] [playouts-per-move]
           bitellova-profile symmetry [count]
           bitellova-profile mcts [games] [iterations]
           bitellova-profile match [games] [iterations]

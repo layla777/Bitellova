@@ -640,7 +640,15 @@ package struct Board: Hashable, CustomStringConvertible {
     }
 
     package var finalScore: (black: Int, white: Int)? {
-        calculateFinalScore(legalMoves: calculateLegalMoves())
+        let legalMoves =
+            emptySquares == 0
+            ? 0
+            : (cachedLegalMoves
+                ?? calculateLegalMoves())
+
+        return calculateFinalScore(
+            legalMoves: legalMoves
+        )
     }
 
     // MARK: - SquareConversion

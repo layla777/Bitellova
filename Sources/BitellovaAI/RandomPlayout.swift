@@ -7,8 +7,10 @@
 
 import Bitellova
 
-struct RandomPlayout {
-    func outcome<R: RandomNumberGenerator>(
+package struct RandomPlayout {
+    package init() {}
+
+    package func outcome<R: RandomNumberGenerator>(
         from initialGame: Game,
         using generator: inout R
     ) throws -> Game.Outcome {
