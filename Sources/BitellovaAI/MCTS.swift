@@ -2,7 +2,7 @@
 //  MCTS.swift
 //  Bitellova
 //
-//  Created by IDEGUTI Masaya on 2026/08/26.
+//  Created by ideguti masaya on 2026/08/26.
 //
 
 import Bitellova
@@ -12,6 +12,7 @@ struct Edge {
     let move: UInt64
     var visits = 0
     var valueSum = 0.0
+    var child: Node? = nil
 
     func uctScore(
         parentVisits: Int,
@@ -25,13 +26,29 @@ struct Edge {
         precondition(parentVisits >= visits)
         precondition(explorationConstant >= 0)
 
+        return uctScore(
+            parentLog:
+                log(Double(parentVisits)),
+            explorationConstant:
+                explorationConstant
+        )
+    }
+
+    func uctScore(
+        parentLog: Double,
+        explorationConstant: Double
+    ) -> Double {
+        precondition(visits > 0)
+        precondition(parentLog >= 0)
+        precondition(explorationConstant >= 0)
+
         let averageValue =
             valueSum / Double(visits)
 
         let exploration =
             explorationConstant
             * sqrt(
-                log(Double(parentVisits))
+                parentLog
                     / Double(visits)
             )
 
@@ -39,7 +56,7 @@ struct Edge {
     }
 }
 
-struct Node {
+final class Node {
     let board: Board
     var visits = 0
     var valueSum = 0.0
@@ -51,6 +68,10 @@ struct Node {
             mutableBoard.legalMoves
 
         var edges: [Edge] = []
+
+        edges.reserveCapacity(
+            remainingMoves.nonzeroBitCount
+        )
 
         while remainingMoves != 0 {
             let move =
@@ -86,18 +107,29 @@ struct Node {
             explorationConstant >= 0
         )
 
-        guard
-            let firstIndex =
-                edges.indices.first
-        else {
+        guard !edges.isEmpty else {
             return nil
         }
 
-        var selectedIndex = firstIndex
+        // An unvisited edge always has an infinite UCT score.
+        // Returning the first one preserves the existing tie-breaking order.
+        for index in edges.indices {
+            if edges[index].visits == 0 {
+                return index
+            }
+        }
+
+        precondition(visits > 0)
+
+        let parentLog =
+            log(Double(visits))
+
+        var selectedIndex =
+            edges.startIndex
 
         var selectedScore =
-            edges[firstIndex].uctScore(
-                parentVisits: visits,
+            edges[selectedIndex].uctScore(
+                parentLog: parentLog,
                 explorationConstant:
                     explorationConstant
             )
@@ -105,7 +137,7 @@ struct Node {
         for index in edges.indices.dropFirst() {
             let score =
                 edges[index].uctScore(
-                    parentVisits: visits,
+                    parentLog: parentLog,
                     explorationConstant:
                         explorationConstant
                 )
@@ -147,7 +179,7 @@ struct Node {
 
 struct MCTS {
     struct PathEntry {
-        let canonicalBoard: Board
+        let node: Node
         let edgeIndex: Int?
     }
 
@@ -174,6 +206,39 @@ struct MCTS {
         nodes.count
     }
 
+    private mutating func ensuredNode(
+        for board: Board
+    ) -> (
+        node: Node,
+        board: Board,
+        symmetry: BoardSymmetry
+    ) {
+        let canonical =
+            board.canonicalized()
+
+        if let node =
+            nodes[canonical.board]
+        {
+            return (
+                node,
+                canonical.board,
+                canonical.symmetry
+            )
+        }
+
+        let node = Node(
+            board: canonical.board
+        )
+
+        nodes[canonical.board] = node
+
+        return (
+            node,
+            canonical.board,
+            canonical.symmetry
+        )
+    }
+
     @discardableResult
     mutating func ensureNode(
         for board: Board
@@ -181,29 +246,24 @@ struct MCTS {
         board: Board,
         symmetry: BoardSymmetry
     ) {
-        let canonical =
-            board.canonicalized()
+        let ensured =
+            ensuredNode(for: board)
 
-        if nodes[canonical.board] == nil {
-            nodes[canonical.board] = Node(
-                board: canonical.board
-            )
-        }
-
-        return canonical
+        return (
+            ensured.board,
+            ensured.symmetry
+        )
     }
 
     mutating func selectedMove(
         for board: Board
     ) -> UInt64? {
         let canonical =
-            ensureNode(for: board)
+            ensuredNode(for: board)
 
         guard
-            let node =
-                nodes[canonical.board],
             let edgeIndex =
-                node.selectedEdgeIndex(
+                canonical.node.selectedEdgeIndex(
                     explorationConstant:
                         explorationConstant
                 )
@@ -212,7 +272,7 @@ struct MCTS {
         }
 
         let canonicalMove =
-            node.edges[edgeIndex].move
+            canonical.node.edges[edgeIndex].move
 
         return canonical.symmetry
             .inverse
@@ -223,13 +283,11 @@ struct MCTS {
         from board: Board
     ) throws -> Board? {
         let canonical =
-            ensureNode(for: board)
+            ensuredNode(for: board)
 
         guard
-            let node =
-                nodes[canonical.board],
             let edgeIndex =
-                node.selectedEdgeIndex(
+                canonical.node.selectedEdgeIndex(
                     explorationConstant:
                         explorationConstant
                 )
@@ -238,7 +296,13 @@ struct MCTS {
         }
 
         let move =
-            node.edges[edgeIndex].move
+            canonical.node.edges[edgeIndex].move
+
+        if let child =
+            canonical.node.edges[edgeIndex].child
+        {
+            return child.board
+        }
 
         let childBoard: Board
 
@@ -251,7 +315,10 @@ struct MCTS {
         }
 
         let canonicalChild =
-            ensureNode(for: childBoard)
+            ensuredNode(for: childBoard)
+
+        canonical.node.edges[edgeIndex].child =
+            canonicalChild.node
 
         return canonicalChild.board
     }
@@ -270,14 +337,7 @@ struct MCTS {
         through path: [PathEntry]
     ) {
         for entry in path {
-            guard
-                var node =
-                    nodes[entry.canonicalBoard]
-            else {
-                preconditionFailure(
-                    "Backpropagation path contains an unknown node"
-                )
-            }
+            let node = entry.node
 
             let reward = Double(
                 outcome.reward(
@@ -300,8 +360,6 @@ struct MCTS {
                 node.edges[edgeIndex].valueSum +=
                     reward
             }
-
-            nodes[entry.canonicalBoard] = node
         }
     }
 
@@ -311,10 +369,58 @@ struct MCTS {
         from board: Board,
         using generator: inout R
     ) throws {
+        let rootNode =
+            ensuredNode(for: board).node
+
         var path: [PathEntry] = []
 
-        var currentBoard =
-            ensureNode(for: board).board
+        try runIteration(
+            from: rootNode,
+            path: &path,
+            using: &generator
+        )
+    }
+
+    mutating func runIterations<
+        R: RandomNumberGenerator
+    >(
+        count: Int,
+        from board: Board,
+        using generator: inout R
+    ) throws {
+        precondition(count > 0)
+
+        nodes.reserveCapacity(
+            nodes.count + count + 1
+        )
+
+        let rootNode =
+            ensuredNode(for: board).node
+
+        var path: [PathEntry] = []
+        path.reserveCapacity(16)
+
+        for _ in 0..<count {
+            try runIteration(
+                from: rootNode,
+                path: &path,
+                using: &generator
+            )
+        }
+    }
+
+    private mutating func runIteration<
+        R: RandomNumberGenerator
+    >(
+        from rootNode: Node,
+        path: inout [PathEntry],
+        using generator: inout R
+    ) throws {
+        path.removeAll(
+            keepingCapacity: true
+        )
+
+        var currentNode = rootNode
 
         let randomPlayout =
             RandomPlayout()
@@ -330,36 +436,29 @@ struct MCTS {
                 """
                 MCTS selection exceeded 128 nodes \
                 at board:
-                \(currentBoard)
+                \(currentNode.board)
                 """
             )
 
             guard
-                let node =
-                    nodes[currentBoard]
-            else {
-                preconditionFailure(
-                    "Current MCTS node is missing"
-                )
-            }
-
-            guard
                 let edgeIndex =
-                    node.selectedEdgeIndex(
+                    currentNode.selectedEdgeIndex(
                         explorationConstant:
                             explorationConstant
                     )
             else {
                 path.append(
                     PathEntry(
-                        canonicalBoard:
-                            currentBoard,
+                        node: currentNode,
                         edgeIndex: nil
                     )
                 )
 
                 var terminalGame =
-                    Game(board: currentBoard)
+                    Game(
+                        board:
+                            currentNode.board
+                    )
 
                 guard
                     let outcome =
@@ -375,36 +474,45 @@ struct MCTS {
             }
 
             let edge =
-                node.edges[edgeIndex]
+                currentNode.edges[edgeIndex]
 
             path.append(
                 PathEntry(
-                    canonicalBoard:
-                        currentBoard,
+                    node: currentNode,
                     edgeIndex: edgeIndex
                 )
             )
 
-            let childBoard: Board
+            let childNode: Node
 
-            if edge.move == 0 {
-                childBoard =
-                    currentBoard.passedBoard()
+            if let cachedChild = edge.child {
+                childNode = cachedChild
             } else {
-                childBoard =
-                    try currentBoard.playedBoard(edge.move)
-            }
+                let childBoard: Board
 
-            let canonicalChild =
-                ensureNode(
-                    for: childBoard
-                ).board
+                if edge.move == 0 {
+                    childBoard =
+                        currentNode.board
+                        .passedBoard()
+                } else {
+                    childBoard =
+                        try currentNode.board
+                        .playedBoard(edge.move)
+                }
+
+                childNode =
+                    ensuredNode(
+                        for: childBoard
+                    ).node
+
+                currentNode.edges[edgeIndex].child =
+                    childNode
+            }
 
             if edge.visits == 0 {
                 path.append(
                     PathEntry(
-                        canonicalBoard:
-                            canonicalChild,
+                        node: childNode,
                         edgeIndex: nil
                     )
                 )
@@ -412,7 +520,7 @@ struct MCTS {
                 let rolloutGame =
                     Game(
                         board:
-                            canonicalChild
+                            childNode.board
                     )
 
                 finalOutcome =
@@ -424,8 +532,7 @@ struct MCTS {
                 continue
             }
 
-            currentBoard =
-                canonicalChild
+            currentNode = childNode
         }
 
         guard let finalOutcome else {

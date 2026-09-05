@@ -39,15 +39,15 @@ package struct MonteCarloPlayer {
 
             remainingMoves &= remainingMoves &- 1
 
+            var gameAfterMove = game
+            try gameAfterMove.play(move)
+
             var totalReward = 0
 
             for _ in 0..<playoutsPerMove {
-                var rollout = game
-                try rollout.play(move)
-
                 let outcome =
                     try randomPlayout.outcome(
-                        from: rollout,
+                        from: gameAfterMove,
                         using: &generator
                     )
 

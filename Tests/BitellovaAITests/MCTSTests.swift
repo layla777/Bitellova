@@ -88,7 +88,7 @@ func visitedEdgeUCTScoreCombinesValueAndExploration() {
 
 @Test
 func nodeSelectsItsOnlyUnvisitedEdge() {
-    var node = Node(
+    let node = Node(
         board: .initialPosition
     )
 
@@ -113,7 +113,7 @@ func nodeSelectsItsOnlyUnvisitedEdge() {
 
 @Test
 func nodeSelectsEdgeWithHighestAverageWhenExplorationIsZero() {
-    var node = Node(
+    let node = Node(
         board: .initialPosition
     )
 
@@ -213,9 +213,16 @@ func backpropagationUpdatesNodeAndSelectedEdge() throws {
     let canonical =
         mcts.ensureNode(for: board)
 
+    let node =
+        try #require(
+            mcts.node(
+                for: canonical.board
+            )
+        )
+
     let path = [
         MCTS.PathEntry(
-            canonicalBoard: canonical.board,
+            node: node,
             edgeIndex: 0
         )
     ]
@@ -280,16 +287,21 @@ func backpropagationUsesEachNodesPlayerPerspective() throws {
         for: childBoard
     )
 
+    let childNode =
+        try #require(
+            mcts.node(
+                for: childBoard
+            )
+        )
+
     let path = [
         MCTS.PathEntry(
-            canonicalBoard:
-                canonicalRoot,
+            node: rootNode,
             edgeIndex: edgeIndex
         ),
 
         MCTS.PathEntry(
-            canonicalBoard:
-                childBoard,
+            node: childNode,
             edgeIndex: nil
         ),
     ]
@@ -387,12 +399,11 @@ func repeatedMCTSIterationsProduceMostVisitedLegalMove() throws {
 
     let iterationCount = 64
 
-    for _ in 0..<iterationCount {
-        try mcts.runIteration(
-            from: board,
-            using: &generator
-        )
-    }
+    try mcts.runIterations(
+        count: iterationCount,
+        from: board,
+        using: &generator
+    )
 
     let rootNode =
         try #require(

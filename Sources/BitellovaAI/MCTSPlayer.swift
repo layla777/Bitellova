@@ -55,12 +55,11 @@ package struct MCTSPlayer {
                 explorationConstant
         )
 
-        for _ in 0..<iterationCount {
-            try mcts.runIteration(
-                from: board,
-                using: &generator
-            )
-        }
+        try mcts.runIterations(
+            count: iterationCount,
+            from: board,
+            using: &generator
+        )
 
         guard
             let move =
